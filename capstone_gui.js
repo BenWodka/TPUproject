@@ -19,6 +19,39 @@ class process
 function start_screen()
 {
     let s = [];
+    s.push(`<center><canvas id="canvas" width=100% height=100% style="border:0px solid #FFFFFF;"></canvas></center>`);
+    s.push(`<div>
+            <button class="button_login" onclick="info_screen()">Login</button></div>`);
+
+    var content = document.getElementById("content");
+    if(content)
+    {
+        content.innerHTML = s.join('');
+    }
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.canvas.width = window.innerWidth;
+    ctx.canvas.height = window.innerHeight;
+
+    //grey gradient specifics 
+    const login_gradient = ctx.createRadialGradient(850, 500, 400, 850, 500, 40);
+    login_gradient.addColorStop(1, "lightgrey");
+    login_gradient.addColorStop(0, "grey");
+
+    document.body.style.backgroundColor = "lightgrey";
+
+    ctx.fillStyle = "grey";
+    ctx.fillRect(450, 200, 800, 500);
+    ctx.fillStyle = "black";
+    ctx.font = "20px Georgia";
+    ctx.fillText("Username:", 550, 400);
+
+}
+
+function info_screen()
+{
+    let s = [];
     //s.push(``);
     s.push(`<center><canvas id="canvas" width=100% height=100% style="border:0px solid #FFFFFF;"></canvas></center>`);
     //add button commands
@@ -135,6 +168,71 @@ function create_new_process()
     const ctx = canvas.getContext("2d");
     ctx.canvas.width = window.innerWidth;
     ctx.canvas.height = window.innerHeight;
+
+    ctx.fillStyle = "grey";
+    ctx.fillRect(0, 0, ctx.canvas.width, 90);
+    ctx.font = "40px Georgia";
+    ctx.fillStyle = "black";
+    ctx.fillText("Create New Process", 700, 60);
+
+    row_x1_start = 50;
+    row_y1_start = 175;
+    row_x2_start = 350;
+    row_x3_start = 650;
+    row_x4_start = 950;
+    row_y2_start = 525;
+    x_width = 200;
+    y_width = 125; 
+    title_indent = 10;
+    title_downshift = 40;
+    //Bucket 1 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x1_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 1:", row_x1_start + title_indent, row_y1_start + title_downshift);
+
+    //Bucket 2 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x2_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 2:", row_x2_start + title_indent, row_y1_start + title_downshift);
+
+    //Bucket 3 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x3_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 3:", row_x3_start + title_indent, row_y1_start + title_downshift);
+    
+    //Bucket 4 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x4_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 4:", row_x4_start + title_indent, row_y1_start + title_downshift)
+
+    //Bucket 5 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x1_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 5:", row_x1_start + title_indent, row_y2_start + title_downshift);
+
+    //Bucket 6 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x2_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 6:", row_x2_start + title_indent, row_y2_start + title_downshift);
+
+    //Bucket 7 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x3_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 7:", row_x3_start + title_indent, row_y2_start + title_downshift);
+
+    //Bucket 8 box info
+    ctx.fillStyle = "grey";
+    ctx.fillRect(row_x4_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
+    ctx.fillStyle = "black";
+    ctx.fillText("Bucket 8:", row_x4_start + title_indent, row_y2_start + title_downshift);
+    
 }
 
 function change_process()
