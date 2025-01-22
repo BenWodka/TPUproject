@@ -155,6 +155,8 @@ function create_new_process()
 {
     let s = [];
     s.push(`<center><canvas id="canvas" width=100% height=100% style="border:0px solid #FFFFFF;"></canvas></center>`);
+    s.push(`<div>
+            <button class="button_create_process" onclick="run_process()">Run Process</button></div>`);
 
     var content = document.getElementById("content");
     if(content)
@@ -181,58 +183,52 @@ function create_new_process()
     row_x3_start = 650;
     row_x4_start = 950;
     row_y2_start = 525;
-    x_width = 200;
-    y_width = 125; 
+    x_whitespace = 100;
+    x_width = 200; // box width
+    y_width = 125; // box height
     title_indent = 10;
     title_downshift = 40;
+
     //Bucket 1 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x1_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 1:", row_x1_start + title_indent, row_y1_start + title_downshift);
-
     //Bucket 2 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x2_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 2:", row_x2_start + title_indent, row_y1_start + title_downshift);
-
     //Bucket 3 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x3_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 3:", row_x3_start + title_indent, row_y1_start + title_downshift);
-    
     //Bucket 4 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x4_start, row_y1_start, x_width + row_x1_start, y_width + row_y1_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 4:", row_x4_start + title_indent, row_y1_start + title_downshift)
-
     //Bucket 5 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x1_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 5:", row_x1_start + title_indent, row_y2_start + title_downshift);
-
     //Bucket 6 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x2_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 6:", row_x2_start + title_indent, row_y2_start + title_downshift);
-
     //Bucket 7 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x3_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 7:", row_x3_start + title_indent, row_y2_start + title_downshift);
-
     //Bucket 8 box info
     ctx.fillStyle = "grey";
     ctx.fillRect(row_x4_start, row_y2_start, x_width + row_x1_start, y_width + row_y2_start);
     ctx.fillStyle = "black";
     ctx.fillText("Bucket 8:", row_x4_start + title_indent, row_y2_start + title_downshift);
-    
 }
 
 function change_process()
@@ -252,6 +248,12 @@ function change_process()
     const ctx = canvas.getContext("2d");
     ctx.canvas.width = window.innerWidth;
     ctx.canvas.height = window.innerHeight;
+
+    ctx.fillStyle = "grey";
+    ctx.fillRect(0, 0, ctx.canvas.width, 90);
+    ctx.fillStyle = "black";
+    ctx.font = "40px Georgia";
+    ctx.fillText("Change Process", 700, 60);
 }
 
 function run_process()
