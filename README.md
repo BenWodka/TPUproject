@@ -1,11 +1,13 @@
 # TPU PROJECT
 
-## Let's add documentation as we go
+## Let's try to add documentation as we go
 
 ## Useful extensions for VS Code
     - Live Preview
 
         "Hosts a local server in your workspace for you to preview your webpages on."
+
+## Open Source UI: https://uiverse.io/
 
 ## Local HTTPS testing
     Eventually we'll need to obtain an SSL/TLS certificate when deploying this application, but for now we can simulate HTTPS locally using mkcert.
