@@ -70,89 +70,94 @@ function info_screen() {
       ctx.canvas.width = window.innerWidth;
       ctx.canvas.height = window.innerHeight;
 
-      //grey gradient specifics
-      const color_gradient = ctx.createRadialGradient(
-        325,
-        400,
-        450,
-        325,
-        400,
-        15
-      );
-      color_gradient.addColorStop(1, "lightgrey");
-      color_gradient.addColorStop(0, "grey");
+      ctx.fillStyle = "grey";
+      ctx.fillRect(0, 0, ctx.canvas.width, 60);
 
-      ctx.fillStyle = color_gradient;
-      ctx.fillRect(0, 0, 650, 800); // 850 is half the screen for x
+      // //grey gradient specifics
+      // const color_gradient = ctx.createRadialGradient(
+      //   325,
+      //   400,
+      //   450,
+      //   325,
+      //   400,
+      //   15
+      // );
+      // color_gradient.addColorStop(1, "lightgrey");
+      // color_gradient.addColorStop(0, "grey");
+
+      // ctx.fillStyle = color_gradient;
+      // ctx.fillRect(0, 0, 650, 800); // 850 is half the screen for x
       ctx.fillStyle = "black";
-      x = 40; // 1st row left shift
-      x2 = x + 190; // 2nd row left shift
-      x3 = x2 + 220; // 3rd row left shift
-      y = 40; // 1st column down shift
-      y2 = 70; // 2nd column down shift
-      y3 = 100; // 3rd column down shift
-
-      //print the process names alter font size later as needed...
       ctx.font = "40px Georgia";
-      ctx.fillText("Process 1:", x, 50);
-      ctx.fillText("Process 2:", x, 200);
-      ctx.fillText("Process 3:", x, 350);
-      ctx.fillText("Process 4:", x, 500);
-      ctx.fillText("Process 5:", x, 650);
+      ctx.fillText("Make a Selection", (ctx.canvas.width / 2) - 150, 40);
+      // x = 40; // 1st row left shift
+      // x2 = x + 190; // 2nd row left shift
+      // x3 = x2 + 220; // 3rd row left shift
+      // y = 40; // 1st column down shift
+      // y2 = 70; // 2nd column down shift
+      // y3 = 100; // 3rd column down shift
 
-      //print the process' information
-      ctx.font = "20px Georgia";
-      //print process 1 information
-      ctx.fillText("Bucket 1: 2 hours", x, 50 + y);
-      ctx.fillText("Bucket 4: 4 hours", x, 50 + y2);
-      ctx.fillText("Bucket 7: 5 hours", x, 50 + y3);
-      ctx.fillText("Bucket 2: Not used", x2, 50 + y);
-      ctx.fillText("Bucket 5: 1.5 hours", x2, 50 + y2);
-      ctx.fillText("Bucket 8: 30 minutes", x2, 50 + y3);
-      ctx.fillText("Bucket 3: 1 hour", x3, 50 + y);
-      ctx.fillText("Bucket 6: 1 hour", x3, 50 + y2);
-      //print process 2 information
-      ctx.fillText("Bucket 1: 2 hours", x, 200 + y);
-      ctx.fillText("Bucket 2: 4 hours", x, 200 + y2);
-      ctx.fillText("Bucket 3: 5 hours", x, 200 + y3);
-      ctx.fillText("Bucket 4: Not used", x2, 200 + y);
-      ctx.fillText("Bucket 5: 1.5 hours", x2, 200 + y2);
-      ctx.fillText("Bucket 6: 30 minutes", x2, 200 + y3);
-      ctx.fillText("Bucket 7: 1 hour", x3, 200 + y);
-      ctx.fillText("Bucket 8: 1 hour", x3, 200 + y2);
-      //print process 3 information
-      ctx.fillText("Bucket 1: 2 hours", x, 350 + y);
-      ctx.fillText("Bucket 2: 4 hours", x, 350 + y2);
-      ctx.fillText("Bucket 3: 5 hours", x, 350 + y3);
-      ctx.fillText("Bucket 4: Not used", x2, 350 + y);
-      ctx.fillText("Bucket 5: 1.5 hours", x2, 350 + y2);
-      ctx.fillText("Bucket 6: 30 minutes", x2, 350 + y3);
-      ctx.fillText("Bucket 7: 1 hour", x3, 350 + y);
-      ctx.fillText("Bucket 8: 1 hour", x3, 350 + y2);
-      //print process 4 information
-      ctx.fillText("Bucket 1: 2 hours", x, 500 + y);
-      ctx.fillText("Bucket 2: 4 hours", x, 500 + y2);
-      ctx.fillText("Bucket 3: 5 hours", x, 500 + y3);
-      ctx.fillText("Bucket 4: Not used", x2, 500 + y);
-      ctx.fillText("Bucket 5: 1.5 hours", x2, 500 + y2);
-      ctx.fillText("Bucket 6: 30 minutes", x2, 500 + y3);
-      ctx.fillText("Bucket 7: 1 hour", x3, 500 + y);
-      ctx.fillText("Bucket 8: 1 hour", x3, 500 + y2);
-      //print process 5 information
-      ctx.fillText("Bucket 1: 2 hours", x, 650 + y);
-      ctx.fillText("Bucket 2: 4 hours", x, 650 + y2);
-      ctx.fillText("Bucket 3: 5 hours", x, 650 + y3);
-      ctx.fillText("Bucket 4: Not used", x2, 650 + y);
-      ctx.fillText("Bucket 5: 1.5 hours", x2, 650 + y2);
-      ctx.fillText("Bucket 6: 30 minutes", x2, 650 + y3);
-      ctx.fillText("Bucket 7: 1 hour", x3, 650 + y);
-      ctx.fillText("Bucket 8: 1 hour", x3, 650 + y2);
+      // //print the process names alter font size later as needed...
+      // ctx.font = "40px Georgia";
+      // ctx.fillText("Process 1:", x, 50);
+      // ctx.fillText("Process 2:", x, 200);
+      // ctx.fillText("Process 3:", x, 350);
+      // ctx.fillText("Process 4:", x, 500);
+      // ctx.fillText("Process 5:", x, 650);
 
-      //right portion of the screen
-      ctx.font = "40px Georgia";
-      ctx.fillText("Change process", 1000, 50 + y3);
-      ctx.fillText("Create new process", 975, 325);
-      ctx.fillText("Select process", 1020, 500);
+      // //print the process' information
+      // ctx.font = "20px Georgia";
+      // //print process 1 information
+      // ctx.fillText("Bucket 1: 2 hours", x, 50 + y);
+      // ctx.fillText("Bucket 4: 4 hours", x, 50 + y2);
+      // ctx.fillText("Bucket 7: 5 hours", x, 50 + y3);
+      // ctx.fillText("Bucket 2: Not used", x2, 50 + y);
+      // ctx.fillText("Bucket 5: 1.5 hours", x2, 50 + y2);
+      // ctx.fillText("Bucket 8: 30 minutes", x2, 50 + y3);
+      // ctx.fillText("Bucket 3: 1 hour", x3, 50 + y);
+      // ctx.fillText("Bucket 6: 1 hour", x3, 50 + y2);
+      // //print process 2 information
+      // ctx.fillText("Bucket 1: 2 hours", x, 200 + y);
+      // ctx.fillText("Bucket 2: 4 hours", x, 200 + y2);
+      // ctx.fillText("Bucket 3: 5 hours", x, 200 + y3);
+      // ctx.fillText("Bucket 4: Not used", x2, 200 + y);
+      // ctx.fillText("Bucket 5: 1.5 hours", x2, 200 + y2);
+      // ctx.fillText("Bucket 6: 30 minutes", x2, 200 + y3);
+      // ctx.fillText("Bucket 7: 1 hour", x3, 200 + y);
+      // ctx.fillText("Bucket 8: 1 hour", x3, 200 + y2);
+      // //print process 3 information
+      // ctx.fillText("Bucket 1: 2 hours", x, 350 + y);
+      // ctx.fillText("Bucket 2: 4 hours", x, 350 + y2);
+      // ctx.fillText("Bucket 3: 5 hours", x, 350 + y3);
+      // ctx.fillText("Bucket 4: Not used", x2, 350 + y);
+      // ctx.fillText("Bucket 5: 1.5 hours", x2, 350 + y2);
+      // ctx.fillText("Bucket 6: 30 minutes", x2, 350 + y3);
+      // ctx.fillText("Bucket 7: 1 hour", x3, 350 + y);
+      // ctx.fillText("Bucket 8: 1 hour", x3, 350 + y2);
+      // //print process 4 information
+      // ctx.fillText("Bucket 1: 2 hours", x, 500 + y);
+      // ctx.fillText("Bucket 2: 4 hours", x, 500 + y2);
+      // ctx.fillText("Bucket 3: 5 hours", x, 500 + y3);
+      // ctx.fillText("Bucket 4: Not used", x2, 500 + y);
+      // ctx.fillText("Bucket 5: 1.5 hours", x2, 500 + y2);
+      // ctx.fillText("Bucket 6: 30 minutes", x2, 500 + y3);
+      // ctx.fillText("Bucket 7: 1 hour", x3, 500 + y);
+      // ctx.fillText("Bucket 8: 1 hour", x3, 500 + y2);
+      // //print process 5 information
+      // ctx.fillText("Bucket 1: 2 hours", x, 650 + y);
+      // ctx.fillText("Bucket 2: 4 hours", x, 650 + y2);
+      // ctx.fillText("Bucket 3: 5 hours", x, 650 + y3);
+      // ctx.fillText("Bucket 4: Not used", x2, 650 + y);
+      // ctx.fillText("Bucket 5: 1.5 hours", x2, 650 + y2);
+      // ctx.fillText("Bucket 6: 30 minutes", x2, 650 + y3);
+      // ctx.fillText("Bucket 7: 1 hour", x3, 650 + y);
+      // ctx.fillText("Bucket 8: 1 hour", x3, 650 + y2);
+
+      // //right portion of the screen
+      // ctx.font = "40px Georgia";
+      // ctx.fillText("Change process", 1000, 50 + y3);
+      // ctx.fillText("Create new process", 975, 325);
+      // ctx.fillText("Select process", 1020, 500);
     }
   });
 }
@@ -302,7 +307,7 @@ function create_new_process() {
 }
 
 function change_process() {
-  loadScreen("create_new_process.html", function () {
+  loadScreen("change_process.html", function () {
     document.body.style.backgroundColor = "lightgrey";
 
     const canvas = document.getElementById("canvas");
@@ -320,7 +325,7 @@ function change_process() {
 }
 
 function run_process() {
-  loadScreen("create_new_process.html", function () {
+  loadScreen("run_process.html", function () {
     document.body.style.backgroundColor = "lightgrey";
 
     const canvas = document.getElementById("canvas");
