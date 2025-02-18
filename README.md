@@ -36,4 +36,8 @@
         https://localhost:5000
 
 
+## CORS issue
+    pip install flask-cors
 
+## To run the endpoint and test it:
+    python endpoint.py

@@ -1,12 +1,64 @@
-<div>
-    <div style="position:absolute; top:20px; right:20px;">
-      <button onclick="logout()">Logout</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Main Menu</title>
+  <style>
+    body {
+      background-color: #f2f2f2;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    /* Centered container similar to the login screen */
+    #mainContainer {
+      width: 400px;
+      margin: 50px auto;
+      padding: 30px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      text-align: center;
+    }
+    /* Styling for the header text */
+    h2 {
+      margin-bottom: 20px;
+    }
+    /* Display for selected process */
+    .selected-process {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: red;
+    }
+    /* Styling for buttons */
+    .menu-button {
+      background-color: #4285f4;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      padding: 12px 20px;
+      margin: 10px 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .menu-button:hover {
+      background-color: #357ae8;
+    }
+  </style>
+</head>
+<body>
+  <div id="mainContainer">
+    <h2>Make a Selection</h2>
+    <div id="selectedProcessDisplay" class="selected-process">
     </div>
-    <div>
-      <button class="button_change" onclick="change_process()">Change Process</button>
-      <button class="button_create" onclick="create_new_process()">Create New Process</button>
-      <button class="button_run" onclick="run_process()">Run</button>
+    <div id="buttonsContainer">
+      <button class="menu-button" onclick="change_process()">Change Process</button>
+      <button class="menu-button" onclick="create_new_process()">Create New Process</button>
+      <button class="menu-button" onclick="run_process()">Run Process</button>
+      <br>
+      <button class="menu-button" onclick="logout()">Logout</button>
     </div>
-      <canvas id="canvas" width="100%" height="100%" style="border:0;"></canvas>
   </div>
-  
+</body>
+</html>
