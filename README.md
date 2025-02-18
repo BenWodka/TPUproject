@@ -36,4 +36,7 @@
         https://localhost:5000
 
 
+## CORS issue
+    pip install flask-cors
+
 
