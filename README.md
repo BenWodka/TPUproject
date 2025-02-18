@@ -39,4 +39,5 @@
 ## CORS issue
     pip install flask-cors
 
-
+## To run the endpoint and test it:
+    python endpoint.py
