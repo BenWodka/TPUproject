@@ -1,157 +1,87 @@
-from flask import Flask, request, jsonify
-from flask.views import MethodView
-import marshmallow as ma
-from flask_smorest import Api, Blueprint, abort
-import psycopg2
+from supabase import create_client
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
-import os 
+import os
 
 # Access credentials for database
 load_dotenv()
 
-HOST_NAME=os.getenv('HOST_NAME')
-DB_NAME=os.getenv('DB_NAME')
-DB_USER=os.getenv('DB_USER')
-DB_PASSWORD=os.getenv('DB_PASSWORD')
+PROJECT_URL = os.getenv("PROJECT_URL")
+API_KEY = os.getenv("API_KEY")
 
-# Initialize flask, flask-smorest
+# Initializes Supabase client
+supabase = create_client(PROJECT_URL, API_KEY)
+
+# Initialize flask
 app = Flask(__name__)
-app.config["API_TITLE"] = "TPU USER API"
-app.config["API_VERSION"] = "v1"
-app.config["OPENAPI_VERSION"] = "3.0.2"
 
-api = Api(app)
+# Enable CORS for cross-origin requests
+CORS(app)  
 
-# Connects to postgresql database
-def db_connect():
+# Limits requests
+limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"],storage_uri="memory://",)
+
+# Get all process data
+@app.route('/processes/', methods=['GET'])
+# @limiter.limit("10 per minute")
+def getProcesses():
     try:
-        conn = psycopg2.connect(host=HOST_NAME, database=DB_NAME, user=DB_USER, password=DB_PASSWORD) 
-        # conn = psycopg2.connect(host=HOST_NAME, database=DB_NAME) 
-        # Also seems to work but unsure if it will continue to work
-        return conn
+        response = supabase.table("processes").select("*").execute()
+        return jsonify(response.data)
     except Exception as e:
-        raise Exception(f'Database connection failed: {e}')
+        return jsonify({"error": f"Error retrieving processes: {str(e)}"}), 500
 
+# Get process with specific ID
+@app.route('/processes/<int:process_id>', methods=['GET'])
+def getProcess(process_id):
+    try:
+        response = supabase.table("processes").select("*").eq("process_id", process_id).single().execute()
+        if not response.data:
+            return jsonify({"error": f"Process with ID {process_id} not found."}), 404
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving process: {str(e)}"}), 500
 
-# Defines Marshmallow schema for processes
-class processSchema(ma.Schema):
-    process_id = ma.fields.Int(dump_only=True)  
-    user_id = ma.fields.Int(required=True)   
-    delay_start = ma.fields.Boolean(required=True)
-    start_time = ma.fields.DateTime(required=True)  
-    end_time = ma.fields.DateTime(allow_none=True)  
-    status = ma.fields.Str(required=True, validate=lambda x: x in ['PENDING', 'IN_PROGRESS', 'COMPLETED'])
+# Get all bucket data
+@app.route('/processes/buckets/', methods=['GET'])
+def getBuckets():
+    try:
+        response = supabase.table("buckets").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving bucket data: {str(e)}"}), 500
 
+# Get bucket with specific ID
+@app.route('/processes/buckets/<int:bucket_id>', methods=['GET'])
+def getBucket(bucket_id):
+    try:
+        response = supabase.table("buckets").select("*").eq("bucket_id", bucket_id).single().execute()
+        if not response.data:
+            return jsonify({"error": f"Bucket with ID {bucket_id} not found."}), 404
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving bucket: {str(e)}"}), 500
 
-# Defines Marshmallow schema for buckets
-class bucketSchema(ma.Schema):
-    bucket_id = ma.fields.Int(dump_only=True) 
-    process_id = ma.fields.Int(required=True)  
-    duration = ma.fields.Time(required=True)  
-    skip_flag = ma.fields.Boolean(required=True)
-    active_flag = ma.fields.Boolean(required=True)
+# Get all buckets of process with specifc process ID
+@app.route('/processes/<int:process_id>/buckets', methods=['GET'])
+def getProcessBuckets(process_id):
+    try:
+        response = supabase.table("buckets").select("*").eq("process_id", process_id).execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving bucket data: {str(e)}"}), 500
 
-# Flask-Smorest blueprint
-blp = Blueprint("processes", "processes", url_prefix="/processes", description="Operations on processes")
-
-@blp.route("/")
-class Processes(MethodView):
-    @blp.response(200, processSchema(many=True))
-    def get(self):
-        try:
-            conn = db_connect()
-            cursor = conn.cursor()
-
-            # Get processes data from db
-            cursor.execute("SELECT * FROM processes") 
-            processesRecord = cursor.fetchall()
-
-            # Close Connection
-            cursor.close()
-            conn.close()
-
-            return jsonify(processesRecord)
-        except Exception as e:
-            abort(500, message=f'Error retrieving process data: {str(e)}')
-
-@blp.route("/<int:process_id>")
-class Process(MethodView):
-    @blp.response(200, processSchema)
-    def get(self, process_id):
-        try:
-            conn = db_connect()
-            cursor = conn.cursor()
-
-            # Get process data from db using id
-            cursor.execute(""" 
-            SELECT process_id, user_id, delay_start, start_time, end_time, status
-            FROM processes
-            WHERE process_id = %s
-            """, (process_id,))
-            processRecord = cursor.fetchone()
-
-            # Check if process was found
-            if not processRecord:
-                abort(404, message=f"Process with ID {process_id} not found.")
-
-            # Close the connection
-            cursor.close()
-            conn.close()
-
-            return jsonify(processRecord)
-        except Exception as e:
-            abort(500, message=f"Error retrieving process: {str(e)}")
-
-
-# Bucket Methods
-@blp.route("/buckets")
-class Buckets(MethodView):
-    @blp.response(200, bucketSchema(many=True))
-    def get(self):
-        try:
-            conn = db_connect()
-            cursor = conn.cursor()
-
-            # Get buckets data from db
-            cursor.execute("SELECT * FROM buckets") 
-            bucketsRecord = cursor.fetchall()
-
-            # Close Connection
-            cursor.close()
-            conn.close()
-
-            return jsonify(bucketsRecord)
-        except Exception as e:
-            abort(500, message=f'Error retrieving bucket data: {str(e)}')
-
-@blp.route("/buckets/<int:bucket_id>")
-class Bucket(MethodView):
-    def get(self, bucket_id):
-        try:
-            conn = db_connect()
-            cursor = conn.cursor()
-
-            # Get bucket data from db using id
-            cursor.execute(""" 
-            SELECT bucket_id, process_id, duration, skip_flag, active_flag
-            FROM buckets
-            WHERE bucket_id = %s
-            """, (bucket_id,))
-            bucketRecord = cursor.fetchone()
-
-            # Check if bucket was found
-            if not bucketRecord:
-                abort(404, message=f"Bucket with ID {bucket_id} not found.")
-
-            # Close the connection
-            cursor.close()
-            conn.close()
-
-            return jsonify(bucketRecord)
-        except Exception as e:
-            abort(500, message=f"Error retrieving bucket: {str(e)}")
-
-api.register_blueprint(blp)
+# Get specifc bucket of a process using IDs
+@app.route('/processes/<int:process_id>/buckets/<int:bucket_id>', methods=['GET'])
+def getProcessBucket(process_id, bucket_id):
+    try:
+        response = supabase.table("buckets").select("*").eq("process_id", process_id).eq("bucket_id", bucket_id).execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving bucket data: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)         
+    app.run(debug=True)
