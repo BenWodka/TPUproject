@@ -1,3 +1,6 @@
+# Contains API for accessing process related tables from database:
+# Processes, Buckets, Error log
+
 from supabase import create_client
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -26,7 +29,6 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"],
 
 # Get all process data
 @app.route('/processes/', methods=['GET'])
-# @limiter.limit("10 per minute")
 def getProcesses():
     try:
         response = supabase.table("processes").select("*").execute()
@@ -82,6 +84,25 @@ def getProcessBucket(process_id, bucket_id):
         return jsonify(response.data)
     except Exception as e:
         return jsonify({"error": f"Error retrieving bucket data: {str(e)}"}), 500
+
+@app.route('/processes/error-log/', methods=['GET'])
+def getErrorLogs():
+    try: 
+        response = supabase.table("error_log").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving processes: {str(e)}"}), 500
+
+@app.route('/processes/error-log/<int:error_id>', methods=['GET'])
+def getErrorLog(error_id):
+    try: 
+        response = supabase.table("error_log").select("*").eq("error_id", error_id).single().execute()
+        if  not response.data:
+            return jsonify({"error": f"Error with ID {error_log} not found."}), 500
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retreiving error log: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)

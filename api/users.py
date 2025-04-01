@@ -1,3 +1,6 @@
+# Contains API for accessing user related tables in database:
+# Users, Error email recipients
+
 from supabase import create_client
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -39,7 +42,15 @@ def getUser(user_id):
             return jsonify({"error": f"User with ID {user_id} not found."}), 404
         return jsonify(response.data)
     except Exception as e:
-        return jsonify({"error": f"Error retrieving user: {str(e)}"}), 500     
+        return jsonify({"error": f"Error retrieving user: {str(e)}"}), 500 
+
+@app.route('/users/error-email-recipients/', methods=['GET'])
+def getErrorEmailRecipients():
+    try: 
+        response = supabase.table("error_email_recipients").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving error email recipients: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)         
