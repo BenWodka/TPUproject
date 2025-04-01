@@ -2,6 +2,7 @@ let processes = [];
 let selectedProcess = null; // Holds the currently selected process
 let isLoggedIn = false;
 let processCount = 0;
+let bucketsPerProcess = 7; // Should be updated to 10 once DB is updated
 process_to_run = 0;
 
 
@@ -28,36 +29,42 @@ class process {
     this.bucket8 = bucket8;
   }
 }
-// Generate a random duration string (e.g., "1h 15m") between 30 and 180 minutes.
-function generateRandomDuration() {
-  let minutes = Math.floor(Math.random() * (180 - 30 + 1)) + 30; // random minutes between 30 and 180
-  let hours = Math.floor(minutes / 60);
-  let mins = minutes % 60;
-  let result = "";
-  if (hours > 0) result += hours + "h ";
-  result += mins + "m";
-  return result;
+
+
+async function fetchProcesses() {
+  try {
+      let response = await fetch(`http://127.0.0.1:5000/processes/buckets/`);
+      if (!response.ok)
+         throw new Error(`HTTP error! Status: ${response.status}`);
+      
+      let data = await response.json();
+      processes = [];
+      
+      // processes = data;
+      // for(let i = 0; i < processes.length; i++)
+      //     console.log(data[i]["process_id"])
+      
+      for (let i = 0; i < bucketsPerProcess; i++) {
+        let process = new Map();
+        process.set("process_id", i);
+        process.set("bucket1", data[i]["duration"]);
+        process.set("bucket2", data[i+1]["duration"]);
+        process.set("bucket3", data[i+2]["duration"]);
+        process.set("bucket4", data[i+3]["duration"]);
+        process.set("bucket5", data[i+4]["duration"]);
+        process.set("bucket6", data[i+5]["duration"]);
+        process.set("bucket7", data[i+6]["duration"]);
+        processes.push(process);
+      }
+
+      // console.log(processes);
+
+      change_process();
+  } catch (error) {
+      console.error("Error fetching processes:", error);
+  }
 }
 
-// Generate six default processes with random bucket durations.
-function generateDefaultProcesses() {
-  let defaults = [];
-  for (let i = 0; i < 6; i++) {
-    let proc = new process(
-      i + 1,
-      generateRandomDuration(),
-      generateRandomDuration(),
-      generateRandomDuration(),
-      generateRandomDuration(),
-      generateRandomDuration(),
-      generateRandomDuration(),
-      generateRandomDuration(),
-      generateRandomDuration()
-    );
-    defaults.push(proc);
-  }
-  return defaults;
-}
 
 //Helps load HTML files
 function loadScreen(file, callback) {
@@ -150,10 +157,8 @@ function create_new_process() {
 }
 
 function change_process() {
-  // Generate randoim processes
-  processes = generateDefaultProcesses();
+  fetchProcesses();
 
-  // styling similar to the login screen.
   let html = `<div id="selectionContainer" style="
                  width: 500px;
                  margin: 50px auto;
@@ -165,29 +170,29 @@ function change_process() {
                ">`;
   html += `<h2>Select a Process</h2>`;
 
-  // Display currently selected process (if any)
   if (selectedProcess) {
     html += `<p style="font-size:16px; margin-bottom:20px;">
-               Currently selected process:<br>
-               <strong>Process ${selectedProcess.id}: [${selectedProcess.bucket1}, ${selectedProcess.bucket2}, ${selectedProcess.bucket3}, ${selectedProcess.bucket4}, ${selectedProcess.bucket5}, ${selectedProcess.bucket6}, ${selectedProcess.bucket7}, ${selectedProcess.bucket8}]</strong>
+                Selected process:<br>
+                <strong>Process ${selectedProcess.get("process_id")}
+                [Bucket Durations: ${selectedProcess.get("bucket1")}, ${selectedProcess.get("bucket2")}, ${selectedProcess.get("bucket4")}, ${selectedProcess.get("bucket5")}, ${selectedProcess.get("bucket5")}, ${selectedProcess.get("bucket6")}, ${selectedProcess.get("bucket7")}]</strong>
              </p>`;
   } else {
     html += `<p style="font-size:16px; margin-bottom:20px;">No process selected yet.</p>`;
   }
 
-  // Create a list of default processes to choose from.
-  html += `<ul style="list-style:none; padding:0;">`;
+// THIS IS WHERE I SEEM TO BE GETTING TROUBLE
+ html += `<ul style="list-style:none; padding:0px;>`;
   processes.forEach((proc, index) => {
     html += `<li onclick="selectProcess(${index})" style="
-                cursor:pointer;
-                margin:10px 0;
+                cursor:pointer; 
                 padding:10px;
-                border:1px solid #ccc;
+                margin:10px 0;
+                border:1px solid #ccc; 
                 border-radius:4px;
               ">
-               <strong>Process ${proc.id}:</strong> 
-               [${proc.bucket1}, ${proc.bucket2}, ${proc.bucket3}, ${proc.bucket4}, ${proc.bucket5}, ${proc.bucket6}, ${proc.bucket7}, ${proc.bucket8}]
-             </li>`;
+                <strong>Process ${proc.get("process_id")}</strong> 
+                [Bucket Durations: ${proc.get("bucket1")}, ${proc.get("bucket2")}, ${proc.get("bucket4")}, ${proc.get("bucket5")}, ${proc.get("bucket5")}, ${proc.get("bucket6")}, ${proc.get("bucket7")}]
+              </li>`;
   });
   html += `</ul>`;
 
@@ -197,16 +202,16 @@ function change_process() {
 
   html += `<br><button class="back_button" onclick="info_screen()" style="margin-top:20px;">Back</button>`;
   html += `</div>`;
-  
+
   document.getElementById("content").innerHTML = html;
 }
 
 function selectProcess(index) {
   selectedProcess = processes[index];
-  alert("Selected Process " + selectedProcess.id + ":\n" + JSON.stringify(selectedProcess));
-  // Re-render the change process screen to update the selected process display.
+  console.log("Selected Process:", selectedProcess);
   change_process();
 }
+
 
 
 function run_process() {
