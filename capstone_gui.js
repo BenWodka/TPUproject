@@ -180,8 +180,7 @@ function change_process() {
     html += `<p style="font-size:16px; margin-bottom:20px;">No process selected yet.</p>`;
   }
 
-// THIS IS WHERE I SEEM TO BE GETTING TROUBLE
- html += `<ul style="list-style:none; padding:0px;>`;
+ html += `<menu style="list-style:none; padding:0px;">`;
   processes.forEach((proc, index) => {
     html += `<li onclick="selectProcess(${index})" style="
                 cursor:pointer; 
@@ -194,7 +193,7 @@ function change_process() {
                 [Bucket Durations: ${proc.get("bucket1")}, ${proc.get("bucket2")}, ${proc.get("bucket4")}, ${proc.get("bucket5")}, ${proc.get("bucket5")}, ${proc.get("bucket6")}, ${proc.get("bucket7")}]
               </li>`;
   });
-  html += `</ul>`;
+  html += `</menu>`;
 
   if (selectedProcess) {
     html += `<button style="margin-top:20px; padding:10px 20px; font-size:16px; border:none; border-radius:4px; background-color:#4285f4; color:#fff;" onclick="info_screen()">Continue with Selected Process</button>`;
