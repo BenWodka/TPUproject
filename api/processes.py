@@ -26,6 +26,20 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS
 limiter = Limiter(get_remote_address, app=app, default_limits=["10 per minute"], storage_uri="memory://")
 
+# Helper to log errors with optional process_id
+def log_error(message, process_id=None):
+    try:
+        entry = {
+            "message": message,
+            "failure_time": datetime.now().isoformat()
+        }
+        if process_id:
+            entry["process_id"] = process_id
+
+        supabase.table("error_log").insert(entry).execute()
+    except Exception as e:
+        print(f"⚠️ Failed to insert error log: {e}")
+
 # --- Process Routes ---
 
 @app.route('/processes/', methods=['GET'])
@@ -35,7 +49,8 @@ def getProcesses():
         return jsonify(response.data)
     except Exception as e:
         error_msg = f"Error retrieving processes: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
+
         send_error_email("TPU Error - Get All Processes", error_msg)
         return jsonify({"error": error_msg}), 500
 
@@ -48,9 +63,62 @@ def getProcess(process_id):
         return jsonify(response.data)
     except Exception as e:
         error_msg = f"Error retrieving process {process_id}: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
         send_error_email("TPU Error - Get Specific Process", error_msg)
         return jsonify({"error": error_msg}), 500
+    
+@app.route('/processes/current', methods=['GET'])
+@cross_origin()
+def get_current_process():
+    try:
+        response = supabase.table("processes").select("*").eq("status", "IN_PROGRESS").limit(1).execute()
+        if not response.data:
+            return jsonify({"message": "No process currently running."}), 404
+
+        if response.data:
+            return jsonify({
+                "running": True,
+                "process": response.data
+            }), 200
+        else:
+            return jsonify({"running": False}), 200
+    except Exception as e:
+        error_msg = f"Failed to get current running process: {str(e)}"
+        log_error(error_msg)
+        send_error_email("TPU Error - Get Current Process", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+
+@app.route('/processes/start', methods=['POST', 'OPTIONS'])
+@cross_origin()
+def start_process():
+    try:
+        data = request.get_json()
+        if not data or "process_id" not in data:
+            return jsonify({"error": "Missing process_id"}), 400
+
+        process_id = data["process_id"]
+
+        # Check if a process is already marked as "IN_PROGRESS"
+        existing = supabase.table("processes").select("*").eq("status", "IN_PROGRESS").execute()
+        if existing.data and len(existing.data) > 0:
+            return jsonify({"message": "A process is already in progress."}), 409
+
+        # Update the selected process to "In progress"
+        supabase.table("processes").update({
+            "status": "IN_PROGRESS"
+        }).eq("process_id", process_id).execute()
+
+        return jsonify({"message": "Process marked as in progress"}), 200
+
+    except Exception as e:
+        error_msg = f"Failed to start process: {str(e)}"
+        log_error(error_msg)
+        send_error_email("TPU Error - Start Process", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+
+
 
 # --- Bucket Routes ---
 
@@ -61,7 +129,7 @@ def getBuckets():
         return jsonify(response.data)
     except Exception as e:
         error_msg = f"Error retrieving bucket data: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
         send_error_email("TPU Error - Get All Buckets", error_msg)
         return jsonify({"error": error_msg}), 500
 
@@ -74,7 +142,7 @@ def getBucket(bucket_id):
         return jsonify(response.data)
     except Exception as e:
         error_msg = f"Error retrieving bucket {bucket_id}: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
         send_error_email("TPU Error - Get Specific Bucket", error_msg)
         return jsonify({"error": error_msg}), 500
 
@@ -85,7 +153,7 @@ def getProcessBuckets(process_id):
         return jsonify(response.data)
     except Exception as e:
         error_msg = f"Error retrieving buckets for process {process_id}: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
         send_error_email("TPU Error - Get Buckets by Process", error_msg)
         return jsonify({"error": error_msg}), 500
 
@@ -96,7 +164,7 @@ def getProcessBucket(process_id, bucket_id):
         return jsonify(response.data)
     except Exception as e:
         error_msg = f"Error retrieving bucket {bucket_id} for process {process_id}: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
         send_error_email("TPU Error - Get Specific Bucket of Process", error_msg)
         return jsonify({"error": error_msg}), 500
 
@@ -126,7 +194,7 @@ def getErrorLog(error_id):
 
 # --- Process Creation ---
 
-@app.route('/process/create', methods=['POST', 'OPTIONS'])
+@app.route('/processes/create', methods=['POST', 'OPTIONS'])
 @cross_origin()
 def create_process():
     try:
@@ -137,12 +205,15 @@ def create_process():
         buckets = data["buckets"]
         end_time_str = data["end_time"]
         end_time = datetime.strptime(end_time_str, "%H:%M")
+
         total_duration = sum(int(b["duration"]) for b in buckets)
         start_time = end_time - timedelta(minutes=total_duration)
 
+        # Insert into processes table
         process_insert = supabase.table("processes").insert({
             "start_time": start_time.strftime("%H:%M:%S"),
-            "end_time": end_time.strftime("%H:%M:%S")
+            "end_time": end_time.strftime("%H:%M:%S"),
+            "status": "Pending"
         }).execute()
 
         if not process_insert.data:
@@ -170,9 +241,10 @@ def create_process():
 
     except Exception as e:
         error_msg = f"Failed to create process: {str(e)}"
-        supabase.table("error_log").insert({"message": error_msg}).execute()
+        log_error(error_msg)
         send_error_email("TPU Error - Process Creation", error_msg)
         return jsonify({"error": error_msg}), 500
+
 
 # --- Login ---
 

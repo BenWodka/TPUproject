@@ -30,24 +30,34 @@ class process {
   }
 }
 
-
 async function fetchProcesses() {
   try {
-    let response = await fetch(`http://127.0.0.1:5000/processes/buckets/`);
+    const response = await fetch(`http://127.0.0.1:5000/processes/buckets/`);
     if (!response.ok)
       throw new Error(`HTTP error! Status: ${response.status}`);
-    
-    let data = await response.json();
+
+    const data = await response.json();
     processes = [];
 
-    for (let i = 0; i < data.length; i += bucketsPerProcess) {
-      if (i + bucketsPerProcess > data.length) break; // guard against out-of-bounds
-      let process = new Map();
-      process.set("process_id", i / bucketsPerProcess);
-      for (let j = 0; j < bucketsPerProcess; j++) {
-        process.set("bucket" + (j + 1), data[i + j]["duration"]);
+    const grouped = {};
+
+    data.forEach(bucket => {
+      const pid = bucket.process_id;
+      if (!grouped[pid]) {
+        grouped[pid] = new Map();
+        grouped[pid].set("process_id", pid);
+        grouped[pid].bucketCount = 1;
       }
-      processes.push(process);
+
+      // Map sequentially: bucket1, bucket2, ...
+      const bucketKey = "bucket" + grouped[pid].bucketCount;
+      grouped[pid].set(bucketKey, bucket.duration);
+      grouped[pid].bucketCount++;
+    });
+
+    for (const pid in grouped) {
+      grouped[pid].delete("bucketCount"); // remove helper key
+      processes.push(grouped[pid]);
     }
 
     return true;
@@ -56,6 +66,7 @@ async function fetchProcesses() {
     return false;
   }
 }
+
 
 
 //Helps load HTML files
@@ -71,40 +82,87 @@ function loadScreen(file, callback) {
 
 function start_screen() {
   fetch("login.html")
-    .then((response) => response.text())
+    .then((response) => {
+      if (!response.ok) {
+        console.error("Failed to load login.html:", response.status);
+        return;
+      }
+      return response.text();
+    })
     .then((html) => {
+      if (!html) return;
+      console.log("Loaded login.html");
       document.getElementById("content").innerHTML = html;
 
-      // Attach the event listener to the form inside login.html
       const loginForm = document.getElementById("loginForm");
       if (loginForm) {
         loginForm.addEventListener("submit", function (e) {
-          e.preventDefault(); // Prevent form from submitting normally
+          e.preventDefault();
 
           const username = document.getElementById("username").value;
           const password = document.getElementById("password").value;
 
-          if (username === "admin" && password === "password") {
-            isLoggedIn = true;
-            info_screen();
-          } else {
-            alert("Invalid credentials. Please try again.");
-          }
+          fetch("http://127.0.0.1:5000/processes/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ username, password })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.message === "Login successful") {
+              isLoggedIn = true;
+              if (data.role === "admin") {
+                info_screen();
+              } else {
+                info_screen();
+              }
+            } else {
+              alert(data.error || "Login failed");
+            }
+          })
+          .catch(err => {
+            console.error("Login error:", err);
+            alert("Login error occurred.");
+          });
         });
+      } else {
+        console.error("loginForm not found in loaded HTML");
       }
+    })
+    .catch((err) => {
+      console.error("Error loading login.html:", err);
     });
 }
 
 function info_screen() {
   loadScreen("info_screen.html", function () {
-    // If a process is selected, show its ID in the header.
-    if (selectedProcess) {
-      document.getElementById("selectedProcessDisplay").innerText =
-        "Selected Process: Process " + selectedProcess.id;
+    const display = document.getElementById("selectedProcessDisplay");
+    const runBtn = document.getElementById("runProcessButton");
+
+    if (selectedProcess && display) {
+      display.innerText = "Selected Process: Process " + (selectedProcess.id || selectedProcess.process_id);
     } else {
-      document.getElementById("selectedProcessDisplay").innerText =
-        "No process selected.";
+      display.innerText = "No process selected.";
     }
+
+    fetch("http://127.0.0.1:5000/processes/current")
+      .then(res => {
+        if (res.status === 404) {
+          if (runBtn) runBtn.innerText = "Run Process";
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (data && data.running && runBtn) {
+          runBtn.innerText = "View Current Process";
+        }
+      })
+      .catch(err => {
+        console.error("Error checking current process:", err);
+      });
   });
 }
 
@@ -169,7 +227,7 @@ function create_new_process() {
       }
 
       // Send process to backend
-      fetch("http://127.0.0.1:5000/process/create", {
+      fetch("http://127.0.0.1:5000/processes/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -214,30 +272,40 @@ async function change_process() {
   if (selectedProcess) {
     html += `<p style="font-size:16px; margin-bottom:20px;">
                 Selected process:<br>
-                <strong>Process ${selectedProcess.get("process_id")}
-                [Bucket Durations: ${selectedProcess.get("bucket1")}, ${selectedProcess.get("bucket2")}, ${selectedProcess.get("bucket4")}, ${selectedProcess.get("bucket5")}, ${selectedProcess.get("bucket5")}, ${selectedProcess.get("bucket6")}, ${selectedProcess.get("bucket7")}]</strong>
+                <strong>Process ${selectedProcess["process_id"]}
+                [Bucket Durations: ${selectedProcess["bucket1"]}, ${selectedProcess["bucket2"]}, ${selectedProcess["bucket3"]}, ${selectedProcess["bucket4"]}, ${selectedProcess["bucket5"]}, ${selectedProcess["bucket6"]}, ${selectedProcess["bucket7"]}]</strong>
              </p>`;
   } else {
     html += `<p style="font-size:16px; margin-bottom:20px;">No process selected yet.</p>`;
   }
 
  html += `<menu style="list-style:none; padding:0px;">`;
-  processes.forEach((proc, index) => {
-    html += `<li onclick="selectProcess(${index})" style="
-                cursor:pointer; 
-                padding:10px;
-                margin:10px 0;
-                border:1px solid #ccc; 
-                border-radius:4px;
-              ">
-                <strong>Process ${proc.get("process_id")}</strong> 
-                [Bucket Durations: ${proc.get("bucket1")}, ${proc.get("bucket2")}, ${proc.get("bucket4")}, ${proc.get("bucket5")}, ${proc.get("bucket5")}, ${proc.get("bucket6")}, ${proc.get("bucket7")}]
-              </li>`;
-  });
+ processes.forEach((proc, index) => {
+  let durations = [];
+  for (let i = 1; i <= 8; i++) {
+    durations.push(proc.get("bucket" + i) ?? "N/A");
+  }
+
+  html += `<li onclick="selectProcess(${index})" style="
+              cursor:pointer; 
+              padding:10px;
+              margin:10px 0;
+              border:1px solid #ccc; 
+              border-radius:4px;
+            ">
+              <strong>Process ${proc.get("process_id")}</strong> 
+              [Bucket Durations: ${durations.join(", ")}]
+            </li>`;
+});
   html += `</menu>`;
+  console.log("Rendering with selected process:", selectedProcess);
 
   if (selectedProcess) {
-    html += `<button style="margin-top:20px; padding:10px 20px; font-size:16px; border:none; border-radius:4px; background-color:#4285f4; color:#fff;" onclick="info_screen()">Continue with Selected Process</button>`;
+    html += `<button type="button"
+              style="margin-top:20px; padding:10px 20px; font-size:16px; border:none; border-radius:4px; background-color:#4285f4; color:#fff;"
+              onclick="info_screen()">
+              Continue with Selected Process
+              </button>`;
   }
 
   html += `<br><button class="back_button" onclick="info_screen()" style="margin-top:20px;">Back</button>`;
@@ -247,59 +315,79 @@ async function change_process() {
 }
 
 function selectProcess(index) {
-  selectedProcess = processes[index];
-  console.log("Selected Process:", selectedProcess);
+  const selectedMap = processes[index];
+  selectedProcess = Object.fromEntries(selectedMap.entries());
+  console.log("Selected Process as object:", selectedProcess);
   change_process();
 }
 
+let runningProcess = null;
 
-
-function run_process() {
-  loadScreen("run_process.html", function () {
+async function run_process() {
+  loadScreen("run_process.html", async function () {
     document.body.style.backgroundColor = "lightgrey";
-    
-    if (!selectedProcess) {
-      alert("No process selected. Please create or select a process first.");
-      return;
-    }
 
-    // Package selectedProcess into JSON
-    console.log("selectedProcess:", selectedProcess);
-    let processDataJSON = JSON.stringify(selectedProcess);
-    console.log("processDataJSON:", processDataJSON);
+    try {
+      const current = await fetch("http://127.0.0.1:5000/processes/current");
+      if (current.status === 200) {
+        const data = await current.json();
+        runningProcess = data.process[0];
+        selectedProcess = runningProcess;
 
-    // Send the JSON data to backend endpoint
-    fetch("http://127.0.0.1:5000/process/start", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: processDataJSON
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log("Response from endpoint:", data);
+        const process_id = runningProcess.process_id;
+
+        // Fetch the actual buckets for the current process
+        const bucketsRes = await fetch(`http://127.0.0.1:5000/processes/${process_id}/buckets`);
+        const buckets = await bucketsRes.json();
+
+        // Build bucket-style selectedProcess object
+        selectedProcess = { process_id };
+        for (const bucket of buckets) {
+          selectedProcess[`bucket${bucket.bucket_id}`] = bucket.duration;
+        }
+
+        console.log("Using running process w/ buckets:", selectedProcess);
+      } else if (selectedProcess) {
+        const startResponse = await fetch("http://127.0.0.1:5000/processes/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ process_id: selectedProcess.process_id })
+        });
+
+        if (!startResponse.ok) {
+          const result = await startResponse.json();
+          alert(result.error || "Failed to start process");
+          return;
+        }
+
+        runningProcess = selectedProcess;
+        console.log("Started new process:", runningProcess);
+      } else {
+        alert("No process selected.");
+        return;
+      }
+
       startRunProcess();
-    })
-    .catch(error => {
-      console.error("Error sending process data:", error);
-      alert("Error starting process");
-    });
+    } catch (err) {
+      console.error("Error in run_process:", err);
+      alert("Error running process.");
+    }
   });
 }
 
 function startRunProcess() {
   //Hardcoded for now, will be brought in by backend and server verified.
-  let stages = [
-    { name: "Stage 1", duration: 2 },
-    { name: "Stage 2", duration: 3 },
-    { name: "Stage 3", duration: 2 },
-    { name: "Stage 4", duration: 2 },
-    { name: "Stage 5", duration: 3 },
-    { name: "Stage 6", duration: 2 },
-    { name: "Stage 7", duration: 2 },
-    { name: "Stage 8", duration: 3 }
-  ];
+  let stages = [];
+  for (let i = 1; i <= 8; i++) {
+    const duration = selectedProcess[`bucket${i}`];
+    if (duration) {
+      stages.push({
+        name: `Stage ${i}`,
+        duration: parseInt(duration)
+      });
+    }
+  }
+  
   
   // Inject stage entries into the container
   let stagesList = document.getElementById("stagesList");

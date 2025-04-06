@@ -10,7 +10,6 @@
       margin: 0;
       padding: 0;
     }
-    /* Centered container similar to the login screen */
     #mainContainer {
       width: 400px;
       margin: 50px auto;
@@ -20,18 +19,15 @@
       border-radius: 8px;
       text-align: center;
     }
-    /* Styling for the header text */
     h2 {
       margin-bottom: 20px;
     }
-    /* Display for selected process */
     .selected-process {
       font-size: 24px;
       font-weight: bold;
       margin-bottom: 20px;
       color: red;
     }
-    /* Styling for buttons */
     .menu-button {
       background-color: #4285f4;
       border: none;
@@ -50,15 +46,33 @@
 <body>
   <div id="mainContainer">
     <h2>Make a Selection</h2>
-    <div id="selectedProcessDisplay" class="selected-process">
-    </div>
+    <div id="selectedProcessDisplay" class="selected-process"></div>
     <div id="buttonsContainer">
       <button class="menu-button" onclick="change_process()">Change Process</button>
       <button class="menu-button" onclick="create_new_process()">Create New Process</button>
-      <button class="menu-button" onclick="run_process()">Run Process</button>
+      <button id="runProcessButton" class="menu-button" onclick="run_process()">Run Process</button>
       <br>
       <button class="menu-button" onclick="logout()">Logout</button>
     </div>
   </div>
+
+  <script>
+    async function updateRunButton() {
+      const btn = document.getElementById("runProcessButton");
+      try {
+        const res = await fetch("http://127.0.0.1:5000/process/current");
+        if (res.ok) {
+          btn.innerText = "View Current Process";
+        } else {
+          btn.innerText = "Run Process";
+        }
+      } catch (err) {
+        console.error("Failed to check current process:", err);
+        btn.innerText = "Run Process";
+      }
+    }
+
+    window.onload = updateRunButton;
+  </script>
 </body>
 </html>
