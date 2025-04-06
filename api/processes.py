@@ -9,7 +9,7 @@ from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from passwordhandler import verify_password
-from api.email_utils import send_error_email
+from email_utils import send_error_email
 import os
 
 # Access credentials for database
