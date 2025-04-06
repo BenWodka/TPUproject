@@ -12,4 +12,5 @@ def hash_password(plain_password):
 
 def verify_password(plain_password, stored_hash):
     password_bytes = plain_password.encode('utf-8')
-    return bcrypt.checkpw(password_bytes, stored_hash)
+    stored_hash_bytes = stored_hash.encode('utf-8')
+    return bcrypt.checkpw(password_bytes, stored_hash_bytes)

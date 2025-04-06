@@ -33,35 +33,27 @@ class process {
 
 async function fetchProcesses() {
   try {
-      let response = await fetch(`http://127.0.0.1:5000/processes/buckets/`);
-      if (!response.ok)
-         throw new Error(`HTTP error! Status: ${response.status}`);
-      
-      let data = await response.json();
-      processes = [];
-      
-      // processes = data;
-      // for(let i = 0; i < processes.length; i++)
-      //     console.log(data[i]["process_id"])
-      
-      for (let i = 0; i < bucketsPerProcess; i++) {
-        let process = new Map();
-        process.set("process_id", i);
-        process.set("bucket1", data[i]["duration"]);
-        process.set("bucket2", data[i+1]["duration"]);
-        process.set("bucket3", data[i+2]["duration"]);
-        process.set("bucket4", data[i+3]["duration"]);
-        process.set("bucket5", data[i+4]["duration"]);
-        process.set("bucket6", data[i+5]["duration"]);
-        process.set("bucket7", data[i+6]["duration"]);
-        processes.push(process);
+    let response = await fetch(`http://127.0.0.1:5000/processes/buckets/`);
+    if (!response.ok)
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    
+    let data = await response.json();
+    processes = [];
+
+    for (let i = 0; i < data.length; i += bucketsPerProcess) {
+      if (i + bucketsPerProcess > data.length) break; // guard against out-of-bounds
+      let process = new Map();
+      process.set("process_id", i / bucketsPerProcess);
+      for (let j = 0; j < bucketsPerProcess; j++) {
+        process.set("bucket" + (j + 1), data[i + j]["duration"]);
       }
+      processes.push(process);
+    }
 
-      // console.log(processes);
-
-      change_process();
+    return true;
   } catch (error) {
-      console.error("Error fetching processes:", error);
+    console.error("Error fetching processes:", error);
+    return false;
   }
 }
 
@@ -119,45 +111,94 @@ function info_screen() {
 function create_new_process() {
   loadScreen("create_new_process.html", function () {
     document.body.style.backgroundColor = "lightgrey";
-    // Build a dynamic process
+
     let html = `<div style="padding:20px;">
                   <h2>Create New Process</h2>
-                  <form id="newProcessForm">`;
+                  <form id="newProcessForm">
+
+                  <label for="endTime">End Time:</label>
+                  <input type="time" id="endTime" name="endTime" required /><br/><br/>
+    `;
+
     for (let i = 1; i <= 8; i++) {
-      let value = selectedProcess ? selectedProcess["bucket" + i] : "";
-      html += `<label for="bucket${i}">Bucket ${i} Duration:</label>
-               <input type="text" id="bucket${i}" name="bucket${i}" value="${value}" required /><br/><br/>`;
+      html += `
+        <fieldset style="margin-bottom: 20px;">
+          <legend>Bucket ${i}</legend>
+
+          <label for="duration${i}">Duration (mins):</label>
+          <input type="number" id="duration${i}" name="duration${i}" min="0" max="180" required /><br/><br/>
+
+          <label for="desc${i}">Description:</label>
+          <input type="text" id="desc${i}" name="desc${i}" maxlength="40" required /><br/>
+        </fieldset>
+      `;
     }
+
     html += `<input type="submit" value="Save Process" />
              </form>
              <button class="back_button" onclick="info_screen()">Back</button>
              </div>`;
+
     document.getElementById("content").innerHTML = html;
 
-    document.getElementById("newProcessForm").addEventListener("submit", function(e) {
+    document.getElementById("newProcessForm").addEventListener("submit", function (e) {
       e.preventDefault();
-      let newProc = new process(
-        document.getElementById("bucket1").value,
-        document.getElementById("bucket2").value,
-        document.getElementById("bucket3").value,
-        document.getElementById("bucket4").value,
-        document.getElementById("bucket5").value,
-        document.getElementById("bucket6").value,
-        document.getElementById("bucket7").value,
-        document.getElementById("bucket8").value
-      );
 
-      // TODO: Send to backend to send to database
-      alert("Process saved:\n" + JSON.stringify(newProc));
+      const endTimeStr = document.getElementById("endTime").value;
+      if (!endTimeStr) {
+        alert("End time is required.");
+        return;
+      }
 
-      selectedProcess = newProc;
-      info_screen();
+      const buckets = [];
+
+      for (let i = 1; i <= 8; i++) {
+        const durationMin = parseInt(document.getElementById(`duration${i}`).value);
+        const desc = document.getElementById(`desc${i}`).value;
+
+        if (isNaN(durationMin) || durationMin < 0 || durationMin > 180 || !desc) {
+          alert(`Invalid input for Bucket ${i}`);
+          return;
+        }
+
+        buckets.push({
+          bucket: i,
+          duration: durationMin,
+          description: desc
+        });
+      }
+
+      // Send process to backend
+      fetch("http://127.0.0.1:5000/process/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ end_time: endTimeStr, buckets: buckets })
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert("Process saved successfully.");
+        selectedProcess = buckets;
+        info_screen();
+      })
+      .catch(error => {
+        console.error("Error saving process:", error);
+        alert("Failed to save process.");
+      });
     });
   });
 }
 
-function change_process() {
-  fetchProcesses();
+
+
+
+async function change_process() {
+  const success = await fetchProcesses();
+  if (!success) {
+    alert("Failed to load processes.");
+    return;
+  }
 
   let html = `<div id="selectionContainer" style="
                  width: 500px;
@@ -228,7 +269,7 @@ function run_process() {
     console.log("processDataJSON:", processDataJSON);
 
     // Send the JSON data to backend endpoint
-    fetch("http://127.0.0.1:5000/api/process/start", {
+    fetch("http://127.0.0.1:5000/process/start", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

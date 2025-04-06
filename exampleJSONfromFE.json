@@ -1,0 +1,14 @@
+{
+    "end_time": "13:45",
+    "buckets": [
+      { "bucket": 1, "duration": 30, "description": "Water" },
+      { "bucket": 2, "duration": 45, "description": "Ethanol" },
+      { "bucket": 3, "duration": 60, "description": "Formaldehyde" },
+      { "bucket": 4, "duration": 15, "description": "xyz" },
+      { "bucket": 5, "duration": 10, "description": "zyx" },
+      { "bucket": 6, "duration": 0, "description": "" },
+      { "bucket": 7, "duration": 0, "description": "" },
+      { "bucket": 8, "duration": 5, "description": "Final" }
+    ]
+  }
+  

@@ -1,3 +1,4 @@
 # Local HTTPS certificates (mkcert)
 localhost.pem
 localhost-key.pem
+.env

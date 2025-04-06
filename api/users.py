@@ -12,8 +12,8 @@ import os
 # Access credentials for database
 load_dotenv()
 
-PROJECT_URL = os.getenv('PROJECT_URL')
-API_KEY = os.getenv('API_KEY')
+PROJECT_URL = os.getenv('SUPABASE_URL')
+API_KEY = os.getenv('SUPABASE_API_KEY')
 
 # Initializes Supabase client
 supabase = create_client(PROJECT_URL, API_KEY)
