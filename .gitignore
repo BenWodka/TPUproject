@@ -3,3 +3,4 @@ localhost.pem
 localhost-key.pem
 .env
 api/insertuser.py
+.pyc
