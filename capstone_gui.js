@@ -270,10 +270,23 @@ async function change_process() {
   html += `<h2>Select a Process</h2>`;
 
   if (selectedProcess) {
+    for (let i = 1; i <= 8; i++) {
+      if (selectedProcess["bucket" + i] == undefined)
+        selectedProcess["bucket" + i] = 0;
+    }
     html += `<p style="font-size:16px; margin-bottom:20px;">
                 Selected process:<br>
                 <strong>Process ${selectedProcess["process_id"]}
-                [Bucket Durations: ${selectedProcess["bucket1"]}, ${selectedProcess["bucket2"]}, ${selectedProcess["bucket3"]}, ${selectedProcess["bucket4"]}, ${selectedProcess["bucket5"]}, ${selectedProcess["bucket6"]}, ${selectedProcess["bucket7"]}]</strong>
+                [Bucket Durations: 
+                  ${selectedProcess["bucket1"]}, 
+                  ${selectedProcess["bucket2"]}, 
+                  ${selectedProcess["bucket3"]}, 
+                  ${selectedProcess["bucket4"]}, 
+                  ${selectedProcess["bucket5"]}, 
+                  ${selectedProcess["bucket6"]}, 
+                  ${selectedProcess["bucket7"]},
+                  ${selectedProcess["bucket8"]}]
+                </strong>
              </p>`;
   } else {
     html += `<p style="font-size:16px; margin-bottom:20px;">No process selected yet.</p>`;
@@ -283,7 +296,7 @@ async function change_process() {
  processes.forEach((proc, index) => {
   let durations = [];
   for (let i = 1; i <= 8; i++) {
-    durations.push(proc.get("bucket" + i) ?? "N/A");
+    durations.push(proc.get("bucket" + i) ?? "0");
   }
 
   html += `<li onclick="selectProcess(${index})" style="
