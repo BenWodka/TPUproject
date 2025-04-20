@@ -170,7 +170,7 @@ function create_new_process() {
   loadScreen("create_new_process.html", function () {
     document.body.style.backgroundColor = "lightgrey";
 
-    let html = `<div style="padding:20px;">
+    let html = `<div style="padding:150px; text-align: center;">
                   <h2>Create New Process</h2>
                   <form id="newProcessForm">
 
@@ -180,7 +180,7 @@ function create_new_process() {
 
     for (let i = 1; i <= 8; i++) {
       html += `
-        <fieldset style="margin-bottom: 20px;">
+        <fieldset style="margin-bottom: 20px; text-align: left;">
           <legend>Bucket ${i}</legend>
 
           <label for="duration${i}">Duration (mins):</label>
