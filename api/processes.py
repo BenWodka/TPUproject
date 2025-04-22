@@ -32,18 +32,35 @@ scheduler.start()
 
 def check_overdue():
     try:
-        # find all processes IN_PROGRESS whose end_time ≤ now
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        overdue = (
-            supabase.table("processes")
-                    .select("process_id")
-                    .eq("status", "IN_PROGRESS")
-                    .lte("end_time", now_str)
-                    .execute()
-                    .data
+        now = datetime.now()
+        now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        # 1) Move any PENDING → IN_PROGRESS once start_time ≤ now
+        pending = (
+            supabase
+            .table("processes")
+            .select("process_id")
+            .eq("status", "PENDING")
+            .lte("start_time", now_str)
+            .execute()
+            .data
         )
-        for row in overdue:
+        for row in pending:
+            mark_in_progress(row["process_id"])
+
+        # 2) Move any IN_PROGRESS → COMPLETED once end_time ≤ now
+        inprog = (
+            supabase
+            .table("processes")
+            .select("process_id")
+            .eq("status", "IN_PROGRESS")
+            .lte("end_time", now_str)
+            .execute()
+            .data
+        )
+        for row in inprog:
             mark_complete(row["process_id"])
+
     except Exception as e:
         print(f"Error in check_overdue: {e}")
 
