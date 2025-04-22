@@ -136,7 +136,7 @@ function create_new_process() {
   loadScreen("create_new_process.html", function () {
     document.body.style.backgroundColor = "lightgrey";
 
-    let html = `<div style="padding:20px;">
+    let html = `<div style="padding:150px; text-align: center;">
                   <h2>Create New Process</h2>
                   <form id="newProcessForm">
                     <label for="endTime">End Time:</label>
@@ -146,7 +146,7 @@ function create_new_process() {
       // only bucket1 inputs are required
       const required = (i === 1) ? 'required' : '';
       html += `
-        <fieldset style="margin-bottom: 20px;">
+        <fieldset style="margin-bottom: 20px; text-align: left;">
           <legend>Bucket ${i} ${i===1?"(required minimum)":""}</legend>
           <label for="duration${i}">Duration (mins):</label>
           <input type="number" id="duration${i}" name="duration${i}"

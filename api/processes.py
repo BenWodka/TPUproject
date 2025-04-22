@@ -410,6 +410,7 @@ def complete_process(process_id):
 # --- Login ---
 
 @app.route("/processes/login", methods=["POST"])
+@cross_origin()
 def login():
     data = request.get_json()
     username = data.get("username")
