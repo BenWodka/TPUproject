@@ -1,0 +1,14 @@
+.stage-entry {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .stage-name {
+    font-weight: bold;
+  }
+  .stage-status {
+    color: gray;
+  }
+  
