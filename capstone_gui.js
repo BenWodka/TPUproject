@@ -353,29 +353,46 @@ async function change_process() {
 }
 
 async function runNow() {
-  const pid = selectedProcess.get("process_id");
+  if (!selectedProcess) {
+    return alert("Please select a process first.");
+  }
 
-  // make sure no other PENDING/IN_PROGRESS
-  const cur = await fetch("http://127.0.0.1:5000/processes/current");
-  if (cur.ok) {
-    const j = await cur.json();
-    if (j.running) {
-      return alert("Another process is already PENDING or IN PROGRESS.");
+  const pid = selectedProcess.process_id ?? selectedProcess.get("process_id");
+  console.log("ƒ runNow(): starting process", pid);
+
+  // make sure there's no other PENDING/IN_PROGRESS
+  try {
+    let cur = await fetch("http://127.0.0.1:5000/processes/current");
+    if (cur.ok) {
+      let j = await cur.json();
+      if (j.running) {
+        return alert("Another process is already PENDING or IN PROGRESS.");
+      }
     }
+  } catch (e) {
+    console.warn("runNow: couldn't check current process", e);
   }
 
-  // fire “run‑now” endpoint
-  const resp = await fetch(`http://127.0.0.1:5000/processes/${pid}/run-now`, {
-    method: "POST"
-  });
-  const body = await resp.json();
-  if (!resp.ok) {
-    return alert(body.error || "Failed to run now.");
+  // call run‑now endpoint
+  let resp, payload;
+  try {
+    resp = await fetch(`http://127.0.0.1:5000/processes/${pid}/run-now`, {
+      method: "POST"
+    });
+    payload = await resp.json();
+    if (!resp.ok) throw new Error(payload.error || resp.statusText);
+  } catch (err) {
+    console.error("runNow: failed to start process", err);
+    return alert("Failed to start process: " + err.message);
   }
 
-  alert(`Process ${pid} started!\nStarts at ${body.start_time}, ends at ${body.end_time}`);
-  info_screen();
+  // give the user feedback
+  alert(`Process ${pid} is now IN_PROGRESS.\nStarts at ${payload.start_time}, ends at ${payload.end_time}`);
+
+  run_process();
 }
+
+
 
 // Accordion-toggle and selection logic
 function toggleProcess(index) {
@@ -518,51 +535,81 @@ async function run_process() {
   loadScreen("run_process.html", async () => {
     document.body.style.backgroundColor = "lightgrey";
 
-    // *** 1) Check /processes/current ***
-    let res, data;
+    // see if there's already a pending/running process
+    let current;
     try {
-      res  = await fetch("http://127.0.0.1:5000/processes/current");
-      data = await res.json();
-    } catch (e) {
-      return alert("Failed to check current process");
-    }
-
-    // If there's still a live PENDING / IN_PROGRESS, show that screen:
-    if (res.ok && data.running) {
-      if (data.status === "PENDING")    return showPendingUI(data.process);
-      if (data.status === "IN_PROGRESS") return showRunningUI(data.process);
-    }
-
-    // *** 2) Otherwise, fall back to Run‑Now ***
-    // (we no longer call Schedule UI here)
-    const btn = document.getElementById("runProcessButton");
-    if (btn.dataset.mode !== "run") {
-      // defensive: if somehow the button text is View but nothing to view
-      btn.dataset.mode = "run";
-    }
-
-    if (!selectedProcess) {
-      return alert("No process selected to run.");
-    }
-
-    // Fire your run‑now endpoint:
-    const pid = selectedProcess.get
-      ? selectedProcess.get("process_id")
-      : selectedProcess.process_id;
-
-    let runRes, payload;
-    try {
-      runRes  = await fetch(`http://127.0.0.1:5000/processes/${pid}/run-now`, { method: "POST" });
-      payload = await runRes.json();
-      if (!runRes.ok) throw new Error(payload.error || runRes.statusText);
+      const res = await fetch("http://127.0.0.1:5000/processes/current");
+      current = await res.json();
+      if (res.ok && current.running) {
+        // if it’s PENDING or IN_PROGRESS, hand off to UI:
+        if (current.status === "PENDING")    return showPendingUI(current.process);
+        if (current.status === "IN_PROGRESS") return showRunningUI(current.process);
+      }
     } catch (err) {
-      return alert("Failed to start process: " + err.message);
+      console.warn("Could not fetch current process:", err);
     }
 
-    // Immediately switch into the “In Progress” screen
-    return showRunningUI({ process_id: pid, ...payload });
+    // If we got here, there's no live process → either schedule or run‐now
+    const pid = selectedProcess?.process_id
+              ?? selectedProcess?.get("process_id");
+    if (!pid) {
+      return alert("Nothing selected to run.");
+    }
+
+    // if they already filled in a schedule in the UI, POST to /schedule
+    if (selectedProcess.get?.("scheduled_date")) {
+      const date = selectedProcess.get("scheduled_date");
+      const time = selectedProcess.get("scheduled_time");
+      try {
+        const schedRes = await fetch(
+          `http://127.0.0.1:5000/processes/${pid}/schedule`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ end_date: date, end_time: time })
+          }
+        );
+        if (!schedRes.ok) {
+          const err = await schedRes.json();
+          throw new Error(err.error || schedRes.statusText);
+        }
+        alert("Process scheduled successfully!");
+        // after scheduling go back to info screen
+        return info_screen();
+      } catch (e) {
+        console.error("Scheduling failed:", e);
+        return alert("Failed to schedule: " + e.message);
+      }
+    }
+
+    //Otherwise, do a Run Now
+    try {
+      // check again that no other is pending/running
+      const res2 = await fetch("http://127.0.0.1:5000/processes/current");
+      if (res2.ok) {
+        const j2 = await res2.json();
+        if (j2.running) {
+          return alert("Another process is already PENDING or IN PROGRESS.");
+        }
+      }
+    } catch (_) {}
+
+    // call run-now endpoint
+    let runRes = await fetch(
+      `http://127.0.0.1:5000/processes/${pid}/run-now`,
+      { method: "POST" }
+    );
+    let body = await runRes.json();
+    if (!runRes.ok) {
+      console.error("run-now failed:", body);
+      return alert("Failed to start process: " + (body.error||runRes.statusText));
+    }
+
+    alert(`Process ${pid} started!\nStarts at ${body.start_time}, ends at ${body.end_time}`);
+    // show the in‑progress UI
+    return showRunningUI({ process_id: pid });
   });
 }
+
 
 
 // after run_process() detects status:
@@ -612,16 +659,19 @@ function showRunningUI(proc) {
       `;
       document.getElementById("content").innerHTML = html;
 
-      // build selectedProcess
+      // stash for runStage()
       selectedProcess = { process_id: pid };
       buckets.forEach(b => selectedProcess[`bucket${b.bucket_id}`] = b.duration);
 
-      drawStages(buckets.map(b=>({
-        name: `Stage ${b.bucket_id}`,
-        duration: parseInt(b.duration)
-      })), /*startAutomatically*/ true);
+      // draw them as stages
+      drawStages(
+        buckets.map(b => ({
+          name: `Stage ${b.bucket_id}`,
+          duration: Number(b.duration)
+        })),
+        true  // auto‐start
+      );
     });
-    startRunProcess();
 }
 
 function cancelPending(pid) {

@@ -25,10 +25,36 @@ supabase = create_client(PROJECT_URL, API_KEY)
 # Initialize flask
 app = Flask(__name__)
 CORS(app)  # Enable CORS
-limiter = Limiter(get_remote_address, app=app, default_limits=["20 per minute"], storage_uri="memory://")
+limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"], storage_uri="memory://")
 
 scheduler = BackgroundScheduler()
 scheduler.start()
+
+def check_overdue():
+    try:
+        # find all processes IN_PROGRESS whose end_time ≤ now
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        overdue = (
+            supabase.table("processes")
+                    .select("process_id")
+                    .eq("status", "IN_PROGRESS")
+                    .lte("end_time", now_str)
+                    .execute()
+                    .data
+        )
+        for row in overdue:
+            mark_complete(row["process_id"])
+    except Exception as e:
+        print(f"Error in check_overdue: {e}")
+
+# schedule the interval job (every 30 s)
+scheduler.add_job(
+    check_overdue,
+    trigger="interval",
+    seconds=30,
+    id="check_overdue",
+    replace_existing=True
+)
 
 def mark_in_progress(process_id):
     try:
@@ -402,7 +428,7 @@ def complete_process(process_id):
                 .update({"status": "COMPLETED"}) \
                 .eq("process_id", process_id) \
                 .execute()
-        return jsonify({"message": "Process marked COMPLETE"}), 200
+        return jsonify({"message": "Process marked COMPLETED"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
