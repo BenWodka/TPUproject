@@ -90,6 +90,39 @@ def mark_complete(process_id):
     except Exception as e:
         print(f"Error: Mark complete {e}")
 
+@app.route("/processes/<int:pid>/message", methods=["GET"])
+@cross_origin()
+def get_message(pid):
+    # Fetch the 8 buckets for this process, ordered by bucket_id
+    buckets_resp = supabase.table("buckets") \
+        .select("bucket_id", "duration") \
+        .eq("process_id", pid) \
+        .order("bucket_id") \
+        .execute()
+    buckets = buckets_resp.data
+
+    # Prepare an 8-element list, defaulting missing slots to 0
+    durations = [0] * 8
+    for b in buckets:
+        idx = b["bucket_id"] - 1
+        if 0 <= idx < 8:
+            durations[idx] = int(b["duration"])
+
+    # Fetch the process row to get its start_time / end_time
+    proc_resp = supabase.table("processes") \
+        .select("start_time", "end_time") \
+        .eq("process_id", pid) \
+        .single() \
+        .execute()
+    proc = proc_resp.data  # e.g. { "start_time":"2025-04-21 13:00:00", … }
+
+    # Convert those timestamps to Unix seconds
+    fmt = "%Y-%m-%d %H:%M:%S"
+    start_ts = int(datetime.strptime(proc["start_time"], fmt).timestamp())
+    end_ts   = int(datetime.strptime(proc["end_time"],   fmt).timestamp())
+
+    # Return the 10‐element array expected by the ESP
+    return jsonify(durations + [start_ts, end_ts])
 
 from apscheduler.jobstores.base import ConflictingIdError
 
@@ -236,6 +269,28 @@ def cancel_process(process_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/processes/<int:process_id>', methods=['DELETE'])
+@cross_origin()
+def delete_process(process_id):
+    try:
+        # delete all buckets for this process
+        supabase.table("buckets") \
+                .delete() \
+                .eq("process_id", process_id) \
+                .execute()
+
+        # delete the process itself
+        supabase.table("processes") \
+                .delete() \
+                .eq("process_id", process_id) \
+                .execute()
+
+        return jsonify({"message": f"Process {process_id} deleted"}), 200
+    except Exception as e:
+        app.logger.error(f"delete_process failed: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/processes/start', methods=['POST', 'OPTIONS'])
 @cross_origin()
@@ -346,7 +401,7 @@ def create_process():
     if not data or "buckets" not in data or "end_time" not in data:
         return jsonify({"error": "Missing fields (buckets, end_time)"}), 400
 
-    # 1) parse end_date + end_time into a full datetime
+    #parse end_date + end_time into a full datetime
     end_date_str = data.get("end_date")
     end_time_str = data["end_time"]
     # for simplicity, assume end_date_str exists; fallback to today if not:
@@ -355,16 +410,15 @@ def create_process():
     dt_str = f"{end_date_str or today}T{end_time_str}:00"
     end_dt = datetime.fromisoformat(dt_str)
 
-    # 2) sum durations
+    # sum durations
     buckets = data["buckets"]   # [{duration: X, description: "…"}, …]
     total_min = sum(int(b["duration"]) for b in buckets)
     start_dt = end_dt - timedelta(minutes=total_min)
 
-    # 3) insert the process row
+    # insert the process row
     process_insert = supabase.table("processes").insert({
         "start_time": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "end_time":   end_dt.strftime("%Y-%m-%d %H:%M:%S"),
-        "status":     "PENDING"
     }).execute()
 
     if not process_insert.data:
@@ -372,7 +426,7 @@ def create_process():
 
     process_id = process_insert.data[0]["process_id"]
 
-    # 4) insert buckets — no bucket_id field, let DB auto‐assign it
+    # insert buckets — no bucket_id field, let DB auto‐assign it
     bucket_rows = []
     for b in buckets:
         bucket_rows.append({

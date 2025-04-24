@@ -133,40 +133,44 @@ function start_screen() {
 }
 
 function create_new_process() {
-  loadScreen("create_new_process.html", function () {
+  loadScreen("create_new_process.html", () => {
     document.body.style.backgroundColor = "lightgrey";
 
-    let html = `<div style="padding:150px; text-align: center;">
-                  <h2>Create New Process</h2>
-                  <form id="newProcessForm">
-                    <label for="endTime">End Time:</label>
-                    <input type="time" id="endTime" name="endTime" required /><br/><br/>`;
+    // Build the form HTML
+    let html = `
+      <div style="padding:20px; max-width:500px; margin:0 auto;">
+        <h2>Create New Process</h2>
+        <form id="newProcessForm">
+          <label for="endTime">End Time:</label><br>
+          <input type="time" id="endTime" name="endTime" required /><br/><br/>
+    `;
 
+    // Buckets 1–8, bucket 1 is required
     for (let i = 1; i <= 8; i++) {
-      // only bucket1 inputs are required
-      const required = (i === 1) ? 'required' : '';
+      const req = i === 1 ? "required" : "";
       html += `
-        <fieldset style="margin-bottom: 20px; text-align: left;">
-          <legend>Bucket ${i} ${i===1?"(required minimum)":""}</legend>
-          <label for="duration${i}">Duration (mins):</label>
-          <input type="number" id="duration${i}" name="duration${i}"
-                 min="0" max="500" ${required} /><br/><br/>
-          <label for="desc${i}">Description:</label>
-          <input type="text" id="desc${i}" name="desc${i}"
-                 maxlength="40" ${required} /><br/>
+        <fieldset style="margin-bottom:20px;">
+          <legend>Bucket ${i}${i===1?" (required)":""}</legend>
+          <label>Duration (mins):</label><br>
+          <input type="number" id="duration${i}" min="0" max="500" ${req} /><br><br>
+          <label>Description:</label><br>
+          <input type="text" id="desc${i}" maxlength="40" ${req} /><br>
         </fieldset>
       `;
     }
 
-    html += `<input type="submit" value="Save Process" />
-             <button type="button" class="back_button" onclick="info_screen()">Back</button>
-             </form></div>`;
+    html += `
+          <button type="submit" class="menu-button">Save Draft</button>
+          <button type="button" class="menu-button back_button" onclick="info_screen()">Cancel</button>
+        </form>
+      </div>
+    `;
 
     document.getElementById("content").innerHTML = html;
 
     document
       .getElementById("newProcessForm")
-      .addEventListener("submit", async function (e) {
+      .addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const endTimeStr = document.getElementById("endTime").value;
@@ -174,55 +178,53 @@ function create_new_process() {
           return alert("End time is required.");
         }
 
-        // Gather only the buckets the user actually filled out
+        // Collect only filled-out buckets
         const buckets = [];
         for (let i = 1; i <= 8; i++) {
-          const durEl   = document.getElementById(`duration${i}`);
-          const descEl  = document.getElementById(`desc${i}`);
-          const duration = durEl.value.trim();
-          const desc     = descEl.value.trim();
-
-          // If either field is non-empty, require both
-          if (duration !== "" || desc !== "") {
-            if (duration === "" || isNaN(+duration) || +duration < 0 || +duration > 500) {
-              return alert(`Please enter a valid duration for Bucket ${i}.`);
+          const d = document.getElementById(`duration${i}`).value.trim();
+          const desc = document.getElementById(`desc${i}`).value.trim();
+          if (d !== "" || desc !== "") {
+            const mins = Number(d);
+            if (!d || isNaN(mins) || mins < 0 || mins > 500) {
+              return alert(`Invalid duration for Bucket ${i}.`);
             }
             if (!desc) {
-              return alert(`Please enter a description for Bucket ${i}.`);
+              return alert(`Please provide a description for Bucket ${i}.`);
             }
-            buckets.push({
-              bucket: i,
-              duration: +duration,
-              description: desc
-            });
+            buckets.push({ bucket: i, duration: mins, description: desc });
           }
         }
 
         if (buckets.length < 1) {
-          return alert("You must fill out at least Bucket 1 (duration + description).");
+          return alert("You must fill out at least Bucket 1.");
         }
 
-        // Send process to backend
         try {
+          // Create the process draft (no status field => NULL in DB)
           const resp = await fetch("http://127.0.0.1:5000/processes/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ end_time: endTimeStr, buckets })
           });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || resp.statusText);
+          const result = await resp.json();
+          if (!resp.ok) throw new Error(result.error || resp.statusText);
 
-          alert("Process saved successfully.");
-          selectedProcess = buckets;  
+          // Stash the returned process_id so Info Screen picks it up
+          selectedProcess = new Map([
+            ["process_id", result.process_id]
+            // start_time/end_time not set until schedule/run
+          ]);
+
+          alert("Process saved as draft! You can now Run or Schedule it.");
           info_screen();
+
         } catch (err) {
-          console.error("Error saving process:", err);
+          console.error("Error creating process:", err);
           alert("Failed to save process: " + err.message);
         }
       });
   });
 }
-
 
 
 function collectBuckets() {
@@ -392,8 +394,6 @@ async function runNow() {
   run_process();
 }
 
-
-
 // Accordion-toggle and selection logic
 function toggleProcess(index) {
   // close all
@@ -535,78 +535,72 @@ async function run_process() {
   loadScreen("run_process.html", async () => {
     document.body.style.backgroundColor = "lightgrey";
 
-    // see if there's already a pending/running process
-    let current;
+    // 1) Check server for any existing PENDING/IN_PROGRESS
+    let res, data;
     try {
-      const res = await fetch("http://127.0.0.1:5000/processes/current");
-      current = await res.json();
-      if (res.ok && current.running) {
-        // if it’s PENDING or IN_PROGRESS, hand off to UI:
-        if (current.status === "PENDING")    return showPendingUI(current.process);
-        if (current.status === "IN_PROGRESS") return showRunningUI(current.process);
-      }
+      res  = await fetch("http://127.0.0.1:5000/processes/current");
+      data = await res.json();
     } catch (err) {
-      console.warn("Could not fetch current process:", err);
+      return alert("Failed to check current process");
+    }
+    if (res.ok && data.running) {
+      if (data.status === "PENDING")    return showPendingUI(data.process);
+      if (data.status === "IN_PROGRESS") return showRunningUI(data.process);
     }
 
-    // If we got here, there's no live process → either schedule or run‐now
-    const pid = selectedProcess?.process_id
-              ?? selectedProcess?.get("process_id");
-    if (!pid) {
-      return alert("Nothing selected to run.");
-    }
-
-    // if they already filled in a schedule in the UI, POST to /schedule
-    if (selectedProcess.get?.("scheduled_date")) {
-      const date = selectedProcess.get("scheduled_date");
-      const time = selectedProcess.get("scheduled_time");
-      try {
-        const schedRes = await fetch(
-          `http://127.0.0.1:5000/processes/${pid}/schedule`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ end_date: date, end_time: time })
-          }
-        );
-        if (!schedRes.ok) {
-          const err = await schedRes.json();
-          throw new Error(err.error || schedRes.statusText);
-        }
-        alert("Process scheduled successfully!");
-        // after scheduling go back to info screen
-        return info_screen();
-      } catch (e) {
-        console.error("Scheduling failed:", e);
-        return alert("Failed to schedule: " + e.message);
-      }
-    }
-
-    //Otherwise, do a Run Now
-    try {
-      // check again that no other is pending/running
-      const res2 = await fetch("http://127.0.0.1:5000/processes/current");
-      if (res2.ok) {
-        const j2 = await res2.json();
-        if (j2.running) {
-          return alert("Another process is already PENDING or IN PROGRESS.");
-        }
-      }
-    } catch (_) {}
-
-    // call run-now endpoint
-    let runRes = await fetch(
-      `http://127.0.0.1:5000/processes/${pid}/run-now`,
-      { method: "POST" }
+    // 2) If the user has only drafted locally (status="DRAFT") OR has never scheduled it,
+    //    send them to the schedule screen.
+    const isDraft = selectedProcess && (
+      (selectedProcess.get && selectedProcess.get("status")==="DRAFT") ||
+      selectedProcess.status === "DRAFT"
     );
-    let body = await runRes.json();
-    if (!runRes.ok) {
-      console.error("run-now failed:", body);
-      return alert("Failed to start process: " + (body.error||runRes.statusText));
+    const hasScheduled = selectedProcess && (
+      (selectedProcess.get && selectedProcess.get("scheduled_date")) ||
+      selectedProcess.scheduled_date
+    );
+    if (isDraft || !hasScheduled) {
+      return showScheduleUI();
     }
 
-    alert(`Process ${pid} started!\nStarts at ${body.start_time}, ends at ${body.end_time}`);
-    // show the in‑progress UI
-    return showRunningUI({ process_id: pid });
+    // 3) At this point we have a valid selectedProcess with scheduled_date/time
+    const pid = selectedProcess.get 
+                ? selectedProcess.get("process_id") 
+                : selectedProcess.process_id;
+    const date = selectedProcess.get 
+                 ? selectedProcess.get("scheduled_date") 
+                 : selectedProcess.scheduled_date;
+    const time = selectedProcess.get 
+                 ? selectedProcess.get("scheduled_time") 
+                 : selectedProcess.scheduled_time;
+
+    // sanity check
+    if (!pid || !date || !time) {
+      return alert("No process or schedule info available.");
+    }
+
+    // 4) POST to /schedule to set it PENDING
+    try {
+      const schedRes = await fetch(
+        `http://127.0.0.1:5000/processes/${pid}/schedule`, {
+          method:  "POST",
+          headers: { "Content-Type":"application/json" },
+          body:    JSON.stringify({ end_date: date, end_time: time })
+        }
+      );
+      const schedJson = await schedRes.json();
+      if (!schedRes.ok) throw new Error(schedJson.error || schedRes.statusText);
+
+      // show the Pending UI immediately
+      alert(`Process ${pid} scheduled:\n starts at ${schedJson.start_time}\n ends at ${schedJson.end_time}`);
+      return showPendingUI({
+        process_id: pid,
+        start_time: schedJson.start_time,
+        end_time:   schedJson.end_time
+      });
+    } catch (err) {
+      console.error("schedule failed:", err);
+      return alert("Failed to schedule process: " + err.message);
+    }
   });
 }
 
@@ -647,31 +641,52 @@ function showPendingUI(proc) {
 
 function showRunningUI(proc) {
   const pid = proc.process_id;
+
+  // 1) Load bucket list and draw stages
   fetch(`http://127.0.0.1:5000/processes/${pid}/buckets`)
     .then(r => r.json())
     .then(buckets => {
-      let html = `
+      document.getElementById("content").innerHTML = `
         <div style="text-align:center; padding:20px;">
           <h2>Process ${pid} is In Progress</h2>
           <div id="stagesList"></div>
           <button class="menu-button" onclick="info_screen()">Back</button>
         </div>
       `;
-      document.getElementById("content").innerHTML = html;
 
-      // stash for runStage()
-      selectedProcess = { process_id: pid };
-      buckets.forEach(b => selectedProcess[`bucket${b.bucket_id}`] = b.duration);
-
-      // draw them as stages
-      drawStages(
-        buckets.map(b => ({
-          name: `Stage ${b.bucket_id}`,
-          duration: Number(b.duration)
-        })),
-        true  // auto‐start
-      );
+      drawStages(buckets.map(b => ({
+        name:     `Stage ${b.bucket_id}`,
+        duration: Number(b.duration)
+      })), true);
     });
+
+  // Poll this_ process every 10s
+  const poller = setInterval(async () => {
+    try {
+      // fetch full process row
+      const res2 = await fetch(`http://127.0.0.1:5000/processes/${pid}`);
+      if (!res2.ok) throw new Error(res2.statusText);
+      const full = await res2.json();
+
+      if (full.status === "COMPLETED") {
+        clearInterval(poller);
+        showCompletedUI(full);
+      }
+    } catch (e) {
+      console.error("poll error:", e);
+    }
+  }, 10_000);
+}
+
+function showCompletedUI(proc) {
+  document.getElementById("content").innerHTML = `
+    <div style="text-align:center; padding:20px;">
+      <h2>Process ${proc.process_id} Complete</h2>
+      <p>Started at: ${new Date(proc.start_time).toLocaleString()}</p>
+      <p>Ended at:   ${new Date(proc.end_time).toLocaleString()}</p>
+      <button class="menu-button" onclick="info_screen()">Back</button>
+    </div>
+  `;
 }
 
 function cancelPending(pid) {
@@ -751,9 +766,10 @@ function runStage(index, stages) {
     return;
   }
 
-  const { durationMins, name } = stages[index];
-  const totalSecs = durationMins * 60;
+  const { duration, name } = stages[index];
+  const totalSecs = duration * 60;
   let elapsed = 0;
+
   const statusElem = document.getElementById(`stage-status-${index}`);
   statusElem.innerText = `Running: 0s / ${totalSecs}s`;
 
@@ -774,10 +790,12 @@ let infoPollHandle = null;
 
 function info_screen() {
   loadScreen("info_screen.html", () => {
-    const display = document.getElementById("selectedProcessDisplay");
-    const runBtn  = document.getElementById("runProcessButton");
+    const display   = document.getElementById("selectedProcessDisplay");
+    const runBtn    = document.getElementById("runProcessButton");
+    const changeBtn = document.getElementById("changeProcessButton");
+    const btns      = document.getElementById("buttonsContainer");
 
-    // Show/hide the “Selected Process” line:
+    // --- update the “Selected Process” line ---
     if (selectedProcess && display) {
       const pid = selectedProcess.process_id ?? selectedProcess.get("process_id");
       display.innerText = `Selected Process: Process ${pid}`;
@@ -786,32 +804,52 @@ function info_screen() {
       display.style.display = "none";
     }
 
-    // A helper to poll /processes/current and update the button:
+    // --- insert or find the Deselect button ---
+    let deselectBtn = document.getElementById("deselectProcessButton");
+    if (!deselectBtn) {
+      deselectBtn = document.createElement("button");
+      deselectBtn.id        = "deselectProcessButton";
+      deselectBtn.className = "menu-button";
+      deselectBtn.innerText = "Deselect Process";
+      deselectBtn.onclick   = () => {
+        selectedProcess = null;
+        info_screen();
+      };
+      // put it right after “Run Process”
+      btns.insertBefore(deselectBtn, runBtn.nextSibling);
+    }
+    // only show if something’s actually selected
+    deselectBtn.style.display = selectedProcess ? "inline-block" : "none";
+
+    // --- your existing polling logic to update runBtn text ---
     async function pollCurrent() {
       try {
+        changeBtn.style.display = "inline-block";
+        changeBtn.onclick      = () => {
+          selectedProcess = null;
+          change_process();
+        };
         const res = await fetch("http://127.0.0.1:5000/processes/current");
         const { running, status } = await res.json();
         if (running && (status === "PENDING" || status === "IN_PROGRESS")) {
-          runBtn.innerText = "View Current Process";
-          runBtn.dataset.mode = "view";
+          runBtn.innerText     = "View Current Process";
+          runBtn.dataset.mode  = "view";
         } else {
-          runBtn.innerText = "Run Process";
-          runBtn.dataset.mode = "run";
+          runBtn.innerText     = "Run Process";
+          runBtn.dataset.mode  = "run";
         }
       } catch (err) {
-        // any error → default to Run
-        runBtn.innerText = "Run Process";
+        runBtn.innerText    = "Run Process";
         runBtn.dataset.mode = "run";
       }
     }
 
-    // Kick off an immediate poll + every 5s thereafter:
+    // kick off immediately + every 5s
     pollCurrent();
     if (infoPollHandle) clearInterval(infoPollHandle);
     infoPollHandle = setInterval(pollCurrent, 5000);
   });
 }
-
 
 function logout() {
   isLoggedIn = false;

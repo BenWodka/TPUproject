@@ -48,13 +48,25 @@
     <h2>Make a Selection</h2>
     <div id="selectedProcessDisplay" class="selected-process"></div>
     <div id="buttonsContainer">
-      <button class="menu-button" onclick="change_process()">Change Process</button>
-      <button class="menu-button" onclick="create_new_process()">Create New Process</button>
-      <button id="runProcessButton" class="menu-button" onclick="run_process()">Run Process</button>
+      <button id="changeProcessButton" class="menu-button" onclick="change_process()">
+        Select Process
+      </button>
+      <button class="menu-button" onclick="create_new_process()">
+        Create New Process
+      </button>
+      <button
+        id="runProcessButton"
+        class="menu-button"
+        onclick="run_process()"
+        data-mode="run"
+      >
+        Run Process
+      </button>
       <br>
       <button class="menu-button" onclick="logout()">Logout</button>
     </div>
   </div>
+  
 
   <script>
     async function updateRunButton() {
