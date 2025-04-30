@@ -1,5 +1,5 @@
-# Contains API for accessing process related tables from database:
-# Processes, Buckets, Error log
+# Contains API for accessing process/user related tables from database in Supabase
+# As well as functions for scheduling routes
 
 from supabase import create_client
 from flask import Flask, jsonify, request
@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from passwordhandler import verify_password
 from email_utils import send_error_email
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.jobstores.base import ConflictingIdError
 import os
 
 # Access credentials for database
@@ -29,6 +30,9 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["30 per minute"],
 
 scheduler = BackgroundScheduler()
 scheduler.start()
+
+
+# --- Scheduler ---
 
 def check_overdue():
     try:
@@ -124,8 +128,6 @@ def get_message(pid):
     # Return the 10‐element array expected by the ESP
     return jsonify(durations + [start_ts, end_ts])
 
-from apscheduler.jobstores.base import ConflictingIdError
-
 @app.route("/processes/<int:process_id>/schedule", methods=["POST"])
 @cross_origin()
 def schedule_process(process_id):
@@ -178,6 +180,7 @@ def schedule_process(process_id):
         "end_time":   end_dt.strftime("%H:%M")
     }), 201
 
+
 # Helper to log errors with optional process_id
 def log_error(message, process_id=None):
     try:
@@ -191,6 +194,7 @@ def log_error(message, process_id=None):
         supabase.table("error_log").insert(entry).execute()
     except Exception as e:
         print(f"⚠️ Failed to insert error log: {e}")
+
 
 # --- Process Routes ---
 
@@ -291,7 +295,6 @@ def delete_process(process_id):
         app.logger.error(f"delete_process failed: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/processes/start', methods=['POST', 'OPTIONS'])
 @cross_origin()
 def start_process():
@@ -318,78 +321,6 @@ def start_process():
         error_msg = f"Failed to start process: {str(e)}"
         log_error(error_msg)
         send_error_email("TPU Error - Start Process", error_msg)
-        return jsonify({"error": error_msg}), 500
-
-# --- Bucket Routes ---
-
-@app.route('/processes/buckets/', methods=['GET'])
-def getBuckets():
-    try:
-        response = supabase.table("buckets").select("*").execute()
-        return jsonify(response.data)
-    except Exception as e:
-        error_msg = f"Error retrieving bucket data: {str(e)}"
-        log_error(error_msg)
-        send_error_email("TPU Error - Get All Buckets", error_msg)
-        return jsonify({"error": error_msg}), 500
-
-@app.route('/processes/buckets/<int:bucket_id>', methods=['GET'])
-def getBucket(bucket_id):
-    try:
-        response = supabase.table("buckets").select("*").eq("bucket_id", bucket_id).single().execute()
-        if not response.data:
-            return jsonify({"error": f"Bucket with ID {bucket_id} not found."}), 404
-        return jsonify(response.data)
-    except Exception as e:
-        error_msg = f"Error retrieving bucket {bucket_id}: {str(e)}"
-        log_error(error_msg)
-        send_error_email("TPU Error - Get Specific Bucket", error_msg)
-        return jsonify({"error": error_msg}), 500
-
-@app.route('/processes/<int:process_id>/buckets', methods=['GET'])
-def getProcessBuckets(process_id):
-    try:
-        response = supabase.table("buckets").select("*").eq("process_id", process_id).execute()
-        return jsonify(response.data)
-    except Exception as e:
-        error_msg = f"Error retrieving buckets for process {process_id}: {str(e)}"
-        log_error(error_msg)
-        send_error_email("TPU Error - Get Buckets by Process", error_msg)
-        return jsonify({"error": error_msg}), 500
-
-@app.route('/processes/<int:process_id>/buckets/<int:bucket_id>', methods=['GET'])
-def getProcessBucket(process_id, bucket_id):
-    try:
-        response = supabase.table("buckets").select("*").eq("process_id", process_id).eq("bucket_id", bucket_id).execute()
-        return jsonify(response.data)
-    except Exception as e:
-        error_msg = f"Error retrieving bucket {bucket_id} for process {process_id}: {str(e)}"
-        log_error(error_msg)
-        send_error_email("TPU Error - Get Specific Bucket of Process", error_msg)
-        return jsonify({"error": error_msg}), 500
-
-# --- Error Log Routes ---
-
-@app.route('/processes/error-log/', methods=['GET'])
-def getErrorLogs():
-    try:
-        response = supabase.table("error_log").select("*").execute()
-        return jsonify(response.data)
-    except Exception as e:
-        error_msg = f"Error retrieving error logs: {str(e)}"
-        send_error_email("TPU Error - Get All Error Logs", error_msg)
-        return jsonify({"error": error_msg}), 500
-
-@app.route('/processes/error-log/<int:error_id>', methods=['GET'])
-def getErrorLog(error_id):
-    try:
-        response = supabase.table("error_log").select("*").eq("error_id", error_id).single().execute()
-        if not response.data:
-            return jsonify({"error": f"Error with ID {error_id} not found."}), 404
-        return jsonify(response.data)
-    except Exception as e:
-        error_msg = f"Error retrieving error log {error_id}: {str(e)}"
-        send_error_email("TPU Error - Get Specific Error Log", error_msg)
         return jsonify({"error": error_msg}), 500
 
 # --- Process Creation ---
@@ -442,8 +373,6 @@ def create_process():
       "start_time": start_dt.strftime("%H:%M"),
       "end_time":   end_dt.strftime("%H:%M")
     }), 201
-
-from datetime import datetime, timedelta
 
 @app.route('/processes/<int:process_id>/run-now', methods=['POST'])
 @cross_origin()
@@ -503,6 +432,108 @@ def complete_process(process_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- Bucket Routes ---
+
+@app.route('/processes/buckets/', methods=['GET'])
+def getBuckets():
+    try:
+        response = supabase.table("buckets").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        error_msg = f"Error retrieving bucket data: {str(e)}"
+        log_error(error_msg)
+        send_error_email("TPU Error - Get All Buckets", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+@app.route('/processes/buckets/<int:bucket_id>', methods=['GET'])
+def getBucket(bucket_id):
+    try:
+        response = supabase.table("buckets").select("*").eq("bucket_id", bucket_id).single().execute()
+        if not response.data:
+            return jsonify({"error": f"Bucket with ID {bucket_id} not found."}), 404
+        return jsonify(response.data)
+    except Exception as e:
+        error_msg = f"Error retrieving bucket {bucket_id}: {str(e)}"
+        log_error(error_msg)
+        send_error_email("TPU Error - Get Specific Bucket", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+@app.route('/processes/<int:process_id>/buckets', methods=['GET'])
+def getProcessBuckets(process_id):
+    try:
+        response = supabase.table("buckets").select("*").eq("process_id", process_id).execute()
+        return jsonify(response.data)
+    except Exception as e:
+        error_msg = f"Error retrieving buckets for process {process_id}: {str(e)}"
+        log_error(error_msg)
+        send_error_email("TPU Error - Get Buckets by Process", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+@app.route('/processes/<int:process_id>/buckets/<int:bucket_id>', methods=['GET'])
+def getProcessBucket(process_id, bucket_id):
+    try:
+        response = supabase.table("buckets").select("*").eq("process_id", process_id).eq("bucket_id", bucket_id).execute()
+        return jsonify(response.data)
+    except Exception as e:
+        error_msg = f"Error retrieving bucket {bucket_id} for process {process_id}: {str(e)}"
+        log_error(error_msg)
+        send_error_email("TPU Error - Get Specific Bucket of Process", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+
+# --- Error Log Routes ---
+
+@app.route('/processes/error-log/', methods=['GET'])
+def getErrorLogs():
+    try:
+        response = supabase.table("error_log").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        error_msg = f"Error retrieving error logs: {str(e)}"
+        send_error_email("TPU Error - Get All Error Logs", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+@app.route('/processes/error-log/<int:error_id>', methods=['GET'])
+def getErrorLog(error_id):
+    try:
+        response = supabase.table("error_log").select("*").eq("error_id", error_id).single().execute()
+        if not response.data:
+            return jsonify({"error": f"Error with ID {error_id} not found."}), 404
+        return jsonify(response.data)
+    except Exception as e:
+        error_msg = f"Error retrieving error log {error_id}: {str(e)}"
+        send_error_email("TPU Error - Get Specific Error Log", error_msg)
+        return jsonify({"error": error_msg}), 500
+
+
+# --- User Routes ---
+
+@app.route('/users/', methods=['GET'])
+def getUsers():
+    try:
+        response = supabase.table("users").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving users: {str(e)}"}), 500
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+def getUser(user_id):
+    try:
+        response = supabase.table("users").select("*").eq("user_id", user_id).single().execute()
+        if not response.data:
+            return jsonify({"error": f"User with ID {user_id} not found."}), 404
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving user: {str(e)}"}), 500 
+
+@app.route('/users/error-email-recipients/', methods=['GET'])
+def getErrorEmailRecipients():
+    try: 
+        response = supabase.table("error_email_recipients").select("*").execute()
+        return jsonify(response.data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving error email recipients: {str(e)}"}), 500
+
 
 # --- Login ---
 
@@ -538,6 +569,7 @@ def login():
     except Exception as e:
         error_msg = f"Login failed for user '{username}': {str(e)}"
         return jsonify({"error": error_msg}), 500
+
 
 if __name__ == '__main__':
     # tells APScheduler to shut down when the app exits
