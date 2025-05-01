@@ -39,5 +39,5 @@
 ## Install dependencies for application:
     pip install -r requirements.txt
 
-## To run the endpoint and test it:
-    python endpoint.py
+## To run the endpoints and test them:
+    python api.py
