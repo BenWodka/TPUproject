@@ -14,3 +14,8 @@
 
 ## To run the endpoints and test them:
     python api.py
+
+## ESP Code
+    - Read Documentation to set up a project
+    - esp_main contains:
+        - esp.c, beginnings of esp AP WIFI
