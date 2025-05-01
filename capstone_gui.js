@@ -3,8 +3,7 @@ let selectedProcess = null; // Holds the currently selected process
 let isLoggedIn = false;
 let processCount = 0;
 let bucketsPerProcess = 7; // Should be updated to 10 once DB is updated
-process_to_run = 0;
-
+let process_to_run = 0;
 
 class process {
   constructor(
@@ -794,6 +793,10 @@ function info_screen() {
     const runBtn    = document.getElementById("runProcessButton");
     const changeBtn = document.getElementById("changeProcessButton");
     const btns      = document.getElementById("buttonsContainer");
+    
+    // Update background color if returning from run_process
+    document.body.style.backgroundColor = "#f2f2f2";
+
 
     // --- update the “Selected Process” line ---
     if (selectedProcess && display) {

@@ -74,7 +74,7 @@ FROM 'ABSOLUTE_PATH_TO_FILE/processes.csv'
 DELIMITER ',' CSV HEADER;
 
 --@block
-COPY buckets(process_id, duration, skip_flag, active_flag) 
+COPY buckets(process_id, duration, description) 
 FROM 'ABSOLUTE_PATH_TO_FILE/buckets.csv' 
 DELIMITER ',' CSV HEADER;
 
@@ -84,7 +84,7 @@ FROM 'ABSOLUTE_PATH_TO_FILE/error_log.csv'
 DELIMITER ',' CSV HEADER;
 
 --@block
-COPY error_email_recipiants
+COPY error_email_recipients(user_id, email)
 FROM 'ABSOLUTE_PATH_TO_FILE/error_email_recipients.csv' 
 DELIMITER ',' CSV HEADER;
 
