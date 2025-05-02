@@ -1,7 +1,5 @@
 # TPU PROJECT
 
-## Let's try to add documentation as we go
-
 ## Useful extensions for VS Code
     - Live Preview
 
@@ -13,9 +11,12 @@
     pip install -r requirements.txt
 
 ## To run the endpoints and test them:
-    python api.py
+    python api/api.py
 
-## ESP Code
+## Page to begin running application:
+    capstone.html
+
+## ESP Code:
     - Read Documentation to set up a project
     - esp_main contains:
         - esp.c, beginnings of esp AP WIFI

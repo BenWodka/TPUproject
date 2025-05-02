@@ -1,5 +1,5 @@
 # Contains API for accessing process/user related tables from database in Supabase
-# As well as functions for scheduling routes
+# As well as functions for scheduling processes
 
 from supabase import create_client
 from flask import Flask, jsonify, request
